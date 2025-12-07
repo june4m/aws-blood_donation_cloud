@@ -1,0 +1,93 @@
+/* Fixed Buttons Layout for DaiVietBlood */
+/* Đảm bảo các nút ở góc phải dưới không bị chồng lấn */
+
+/* Keyframes cho hiệu ứng glow đơn giản */
+@keyframes glow {
+  0%,
+  100% {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+  50% {
+    box-shadow: 0 8px 24px rgba(211, 47, 47, 0.4);
+  }
+}
+
+/* Base styles cho tất cả fixed buttons */
+.fixed-button-base {
+  position: fixed;
+  right: 20px;
+  transition: all 0.3s ease;
+  border-radius: 50%;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  animation: glow 3s ease-in-out infinite;
+}
+
+/* Scroll to Top Button - Vị trí cao nhất */
+.scroll-to-top-btn {
+  bottom: 220px;
+  z-index: 1002;
+}
+
+/* Chatbot Button - Vị trí giữa */
+.chatbot-btn {
+  bottom: 160px;
+  z-index: 1001;
+}
+
+/* Emergency Button - Vị trí thấp nhất */
+.emergency-btn {
+  bottom: 100px;
+  z-index: 1000;
+}
+
+/* Responsive cho mobile */
+@media (max-width: 768px) {
+  .fixed-button-base {
+    right: 15px;
+  }
+
+  /* Giảm khoảng cách trên mobile để tiết kiệm không gian */
+  .scroll-to-top-btn {
+    bottom: 180px;
+  }
+
+  .chatbot-btn {
+    bottom: 130px;
+  }
+
+  .emergency-btn {
+    bottom: 80px;
+  }
+}
+
+@media (max-width: 480px) {
+  .fixed-button-base {
+    right: 10px;
+  }
+
+  /* Khoảng cách tối thiểu cho màn hình nhỏ */
+  .scroll-to-top-btn {
+    bottom: 160px;
+  }
+
+  .chatbot-btn {
+    bottom: 115px;
+  }
+
+  .emergency-btn {
+    bottom: 70px;
+  }
+}
+
+/* Hover effects đơn giản */
+.fixed-button-base:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(211, 47, 47, 0.5);
+}
+
+/* Accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .fixed-button-base {
+    animation: none !important;
+  }
+}
