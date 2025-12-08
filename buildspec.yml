@@ -1,38 +1,36 @@
 version: 0.2
 
+env:
+  variables:
+    BACKEND_DIR: BloodDonationSupportSystemBE
+
 phases:
   install:
     runtime-versions:
       nodejs: 18
     commands:
-      - echo "Navigating to backend directory..."
-      - cd BloodDonationSupportSystemBE
       - echo "Installing dependencies..."
-      - npm ci
+      - cd $BACKEND_DIR && npm ci
 
   pre_build:
     commands:
-      - cd BloodDonationSupportSystemBE
       - echo "Running linting..."
-      - npm run lint || true
+      - cd $BACKEND_DIR && npm run lint || true
       - echo "Pre-build completed"
 
   build:
     commands:
-      - cd BloodDonationSupportSystemBE
       - echo "Building the application..."
-      - npm run build
+      - cd $BACKEND_DIR && npm run build
       - echo "Creating deployment package..."
-      - cp package.json dist/
-      - cd dist && npm install --production --ignore-scripts
-      - zip -r ../deployment-package.zip .
-      - cd ..
+      - cd $BACKEND_DIR && cp package.json dist/
+      - cd $BACKEND_DIR/dist && npm install --production --ignore-scripts
+      - cd $BACKEND_DIR/dist && zip -r ../deployment-package.zip .
 
   post_build:
     commands:
-      - cd BloodDonationSupportSystemBE
       - echo "Updating Lambda function..."
-      - aws lambda update-function-code --function-name $LAMBDA_FUNCTION_NAME --zip-file fileb://deployment-package.zip
+      - aws lambda update-function-code --function-name $LAMBDA_FUNCTION_NAME --zip-file fileb://$BACKEND_DIR/deployment-package.zip
       - echo "Updating Lambda handler configuration..."
       - aws lambda update-function-configuration --function-name $LAMBDA_FUNCTION_NAME --handler src/lambda.handler
       - echo "Deployment completed successfully!"
