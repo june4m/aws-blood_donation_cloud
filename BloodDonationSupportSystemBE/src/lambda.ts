@@ -31,10 +31,20 @@ app.use(
   })
 )
 
-// Custom body parser for Lambda - parse JSON string body from API Gateway
+// Custom body parser for Lambda - parse body from API Gateway
 app.use((req: Request, _res: Response, next: NextFunction) => {
+  // Handle Buffer object (from serverless-http)
+  if (req.body && typeof req.body === 'object' && req.body.type === 'Buffer' && Array.isArray(req.body.data)) {
+    try {
+      const bodyString = Buffer.from(req.body.data).toString('utf8')
+      req.body = JSON.parse(bodyString)
+      console.log('Parsed Buffer body:', JSON.stringify(req.body))
+    } catch (e) {
+      console.log('Failed to parse Buffer body')
+    }
+  }
   // If body is a string (from API Gateway), parse it
-  if (req.body && typeof req.body === 'string') {
+  else if (req.body && typeof req.body === 'string') {
     try {
       req.body = JSON.parse(req.body)
     } catch (e) {
