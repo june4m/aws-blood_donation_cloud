@@ -14,9 +14,9 @@ Parameters:
     NoEcho: true
   DBName:
     Type: String
-  PrivateSubnet1:
+  PublicSubnet1:
     Type: String
-  PrivateSubnet2:
+  PublicSubnet2:
     Type: String
   RDSSecurityGroupId:
     Type: String
@@ -31,8 +31,8 @@ Resources:
       DBSubnetGroupName: !Sub '${Environment}-${ProjectName}-db-subnet-group'
       DBSubnetGroupDescription: Subnet group for RDS MySQL
       SubnetIds:
-        - !Ref PrivateSubnet1
-        - !Ref PrivateSubnet2
+        - !Ref PublicSubnet1
+        - !Ref PublicSubnet2
       Tags:
         - Key: Name
           Value: !Sub '${Environment}-${ProjectName}-db-subnet-group'
@@ -59,7 +59,7 @@ Resources:
       VPCSecurityGroups:
         - !Ref RDSSecurityGroupId
       DBSubnetGroupName: !Ref DBSubnetGroup
-      PubliclyAccessible: false
+      PubliclyAccessible: true
       MultiAZ: false
       BackupRetentionPeriod: 0
       PreferredMaintenanceWindow: 'Mon:04:00-Mon:05:00'

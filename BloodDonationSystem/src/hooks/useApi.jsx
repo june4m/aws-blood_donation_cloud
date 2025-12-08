@@ -3,7 +3,9 @@ import { useState, useCallback, useEffect } from "react";
 const useApi = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const BASE_URL = "/api";
+  const BASE_URL = import.meta.env.VITE_API_URL 
+    ? `${import.meta.env.VITE_API_URL}/api` 
+    : "/api";
 
   // Auth utilities
   const isLoggedIn = useCallback(() => {
@@ -376,9 +378,11 @@ const useApi = () => {
     });
   }, [callApi]);
 
+  const EMAIL_BASE_URL = import.meta.env.VITE_API_URL || "";
+  
   const fetchEmailApi = useCallback(
     async (endpoint, options = {}) => {
-      const url = `${endpoint}`; // Không có BASE_URL
+      const url = `${EMAIL_BASE_URL}${endpoint}`;
       setLoading(true);
       setError(null);
       try {
