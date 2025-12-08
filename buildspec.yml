@@ -27,7 +27,7 @@ phases:
       - aws lambda update-function-code --function-name $LAMBDA_FUNCTION_NAME --zip-file fileb://$CODEBUILD_SRC_DIR/deployment-package.zip
       - echo "Waiting 30 seconds for Lambda update..."
       - sleep 30
-      - aws lambda update-function-configuration --function-name $LAMBDA_FUNCTION_NAME --handler src/lambda.handler
+      - aws lambda update-function-configuration --function-name $LAMBDA_FUNCTION_NAME --handler lambda.handler
       - echo "Done!"
 
 artifacts:
