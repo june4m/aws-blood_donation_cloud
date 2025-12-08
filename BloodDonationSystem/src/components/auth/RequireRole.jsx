@@ -143,9 +143,19 @@ const ProtectedRoute = ({
           }
         }
 
+        // Debug: log user info để kiểm tra
+        console.log("=== DEBUG RequireRole ===");
+        console.log("userInfo:", userInfo);
+        console.log("user_role:", userInfo?.user_role);
+        console.log("User_Role:", userInfo?.User_Role);
+        console.log("allowedRoles:", allowedRoles);
+
         // Kiểm tra role nếu cần
         if (allowedRoles && userInfo) {
-          const userRole = (userInfo.user_role || "").trim().toLowerCase();
+          // Hỗ trợ cả user_role và User_Role (backend có thể trả về khác nhau)
+          const userRole = (userInfo.user_role || userInfo.User_Role || "")
+            .trim()
+            .toLowerCase();
           const normalizedAllowedRoles = allowedRoles.map((r) =>
             r.toLowerCase()
           );
@@ -187,7 +197,7 @@ const ProtectedRoute = ({
       showLoginPopup();
       setShowLoginPrompt(false);
     }
-  }, [showLoginPrompt]);
+  }, [showLoginPopup, showLoginPrompt]);
 
   if (isLoading) {
     return (
