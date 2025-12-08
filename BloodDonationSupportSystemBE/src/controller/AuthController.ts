@@ -76,7 +76,7 @@ class AuthController {
     try {
       // First, check if user exists in database
       const dbUser = await this.userService.findUserLogin(email)
-      
+
       // Check if user is banned
       if (dbUser && dbUser.isDelete === false) {
         return ResponseHandle.responseError(res, null, 'Tài khoản của bạn đã bị khóa', 403)
@@ -88,14 +88,14 @@ class AuthController {
       // If Cognito fails with "user not found", try database auth and migrate
       if (!cognitoResult.success && cognitoResult.message.includes('Không tìm thấy tài khoản')) {
         console.log('User not in Cognito, trying database auth...')
-        
+
         if (dbUser) {
           // Verify password with database
           const dbAuthResult = await this.userService.authUser({ email, password })
-          
+
           if (dbAuthResult.success) {
             console.log('Database auth successful, migrating user to Cognito...')
-            
+
             // Create user in Cognito
             try {
               const signUpResult = await CognitoService.adminCreateUser(
@@ -104,7 +104,7 @@ class AuthController {
                 dbUser.user_name || email,
                 dbUser.user_role || 'member'
               )
-              
+
               if (signUpResult.success) {
                 // Try Cognito login again
                 cognitoResult = await CognitoService.signIn(email.trim(), password)
@@ -112,7 +112,7 @@ class AuthController {
             } catch (migrateError) {
               console.error('Migration error:', migrateError)
             }
-            
+
             // If Cognito still fails, return database auth result
             if (!cognitoResult.success) {
               return ResponseHandle.responseSuccess(
@@ -137,21 +137,9 @@ class AuthController {
         return ResponseHandle.responseError(res, null, cognitoResult.message, cognitoResult.statusCode)
       }
 
-      // Determine user role - prioritize database role if Cognito returns 'member' (default)
-      // This handles cases where user exists in DB with a role but hasn't been added to Cognito group
-      const cognitoRole = cognitoResult.data?.user?.role
-      const dbRole = dbUser?.user_role
-      let finalRole = 'member'
-      
-      // If Cognito has a specific role (not 'member'), use it
-      // Otherwise, use database role if available
-      if (cognitoRole && cognitoRole !== 'member') {
-        finalRole = cognitoRole
-      } else if (dbRole) {
-        finalRole = dbRole
-      }
-      
-      console.log('Role determination:', { cognitoRole, dbRole, finalRole })
+      // Always use database role as the source of truth
+      const finalRole = dbUser?.user_role || 'member'
+      console.log('Using DB role:', finalRole)
 
       // Return tokens in response body (not cookies) to avoid CORS issues
       return ResponseHandle.responseSuccess(
@@ -243,7 +231,7 @@ class AuthController {
     if (typeof body === 'string') {
       try {
         body = JSON.parse(body)
-      } catch (e) {}
+      } catch (e) { }
     }
 
     const { email, code } = body as ConfirmBody
@@ -294,7 +282,7 @@ class AuthController {
     if (typeof body === 'string') {
       try {
         body = JSON.parse(body)
-      } catch (e) {}
+      } catch (e) { }
     }
 
     const { email } = body as ForgotPasswordBody
@@ -325,7 +313,7 @@ class AuthController {
     if (typeof body === 'string') {
       try {
         body = JSON.parse(body)
-      } catch (e) {}
+      } catch (e) { }
     }
 
     const { email, code, newPassword } = body as ResetPasswordBody
