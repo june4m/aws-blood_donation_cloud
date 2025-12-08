@@ -24,6 +24,14 @@ const useApi = () => {
       setLoading(true);
       setError(null);
 
+      console.log('Checking login status...');
+      console.log('API Request URL:', url);
+      console.log('API Request options:', JSON.stringify({
+        method: options.method || 'GET',
+        headers: options.headers,
+        bodyPreview: options.body ? options.body.substring(0, 200) : null
+      }));
+
       try {
         const response = await fetch(url, {
           headers: {
@@ -79,9 +87,13 @@ const useApi = () => {
   // Auth APIs
   const login = useCallback(
     async (credentials) => {
+      console.log('Sending login request with credentials:', JSON.stringify(credentials));
+      console.log('Login body:', JSON.stringify(credentials));
+      
       const result = await callApi("/login", {
         method: "POST",
         body: JSON.stringify(credentials),
+        credentials: 'include', // Include cookies for cross-origin requests
       });
 
       if (result.status) {

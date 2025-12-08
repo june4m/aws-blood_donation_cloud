@@ -28,8 +28,22 @@ class UserController {
   }
   public async login(req: Request<{}, {}, LoginReqBody>, res: Response): Promise<any> {
     console.log('Call Login')
-    const { email, password } = req.body
-    console.log(req.body)
+    console.log('Request body type:', typeof req.body)
+    console.log('Request body:', JSON.stringify(req.body))
+    console.log('Request headers:', JSON.stringify(req.headers))
+    
+    // Handle case where body might be a string (from API Gateway)
+    let body = req.body
+    if (typeof body === 'string') {
+      try {
+        body = JSON.parse(body)
+      } catch (e) {
+        console.log('Failed to parse body as JSON')
+      }
+    }
+    
+    const { email, password } = body as LoginReqBody
+    console.log('Extracted email:', email, 'password:', password ? '***' : 'undefined')
 
     if (typeof email !== 'string' || email.trim() === '') {
       console.log('No Email')
