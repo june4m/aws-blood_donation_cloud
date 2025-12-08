@@ -5,39 +5,33 @@ phases:
     runtime-versions:
       nodejs: 18
     commands:
-      - echo "Current directory:" && pwd
-      - echo "Listing files:" && ls -la
-      - echo "Installing dependencies..."
-      - cd BloodDonationSupportSystemBE && npm ci
+      - echo "CODEBUILD_SRC_DIR=$CODEBUILD_SRC_DIR"
+      - ls -la $CODEBUILD_SRC_DIR
+      - cd $CODEBUILD_SRC_DIR/BloodDonationSupportSystemBE && npm ci
 
   pre_build:
     commands:
-      - echo "Running linting..."
-      - cd BloodDonationSupportSystemBE && npm run lint || true
+      - cd $CODEBUILD_SRC_DIR/BloodDonationSupportSystemBE && npm run lint || true
 
   build:
     commands:
-      - echo "Current directory:" && pwd
-      - echo "Listing files:" && ls -la
-      - echo "Building the application..."
-      - cd BloodDonationSupportSystemBE && npm run build
-      - echo "Creating deployment package..."
-      - cp BloodDonationSupportSystemBE/package.json BloodDonationSupportSystemBE/dist/
-      - cd BloodDonationSupportSystemBE/dist && npm install --production --ignore-scripts
-      - cd BloodDonationSupportSystemBE/dist && zip -r ../deployment-package.zip .
-      - echo "Listing deployment package:" && ls -la BloodDonationSupportSystemBE/
+      - echo "Building..."
+      - cd $CODEBUILD_SRC_DIR/BloodDonationSupportSystemBE && npm run build
+      - cp $CODEBUILD_SRC_DIR/BloodDonationSupportSystemBE/package.json $CODEBUILD_SRC_DIR/BloodDonationSupportSystemBE/dist/
+      - cd $CODEBUILD_SRC_DIR/BloodDonationSupportSystemBE/dist && npm install --production --ignore-scripts
+      - cd $CODEBUILD_SRC_DIR/BloodDonationSupportSystemBE/dist && zip -r $CODEBUILD_SRC_DIR/deployment-package.zip .
 
   post_build:
     commands:
-      - echo "Updating Lambda function..."
-      - aws lambda update-function-code --function-name $LAMBDA_FUNCTION_NAME --zip-file fileb://BloodDonationSupportSystemBE/deployment-package.zip
+      - echo "Deploying to Lambda..."
+      - aws lambda update-function-code --function-name $LAMBDA_FUNCTION_NAME --zip-file fileb://$CODEBUILD_SRC_DIR/deployment-package.zip
       - aws lambda update-function-configuration --function-name $LAMBDA_FUNCTION_NAME --handler src/lambda.handler
-      - echo "Deployment completed!"
+      - echo "Done!"
 
 artifacts:
   files:
-    - BloodDonationSupportSystemBE/deployment-package.zip
-  discard-paths: yes
+    - deployment-package.zip
+  base-directory: $CODEBUILD_SRC_DIR
 
 cache:
   paths:
