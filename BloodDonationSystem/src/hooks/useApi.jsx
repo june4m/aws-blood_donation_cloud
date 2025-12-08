@@ -48,7 +48,7 @@ const useApi = () => {
     }
   }, []);
 
-  // Main API caller with credentials support (for authenticated endpoints)
+  // Main API caller with token auth (for authenticated endpoints)
   const callApi = useCallback(
     async (endpoint, options = {}) => {
       const url = `${BASE_URL}${endpoint}`;
@@ -57,11 +57,15 @@ const useApi = () => {
 
       console.log("API Request:", url);
 
+      // Get token from localStorage
+      const user = localStorage.getItem("user");
+      const token = user ? JSON.parse(user).accessToken : null;
+
       try {
         const response = await fetch(url, {
-          credentials: "include", // Include cookies for auth
           headers: {
             "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
             ...(options.headers || {}),
           },
           ...options,
@@ -105,7 +109,7 @@ const useApi = () => {
     [clearAuthData]
   );
 
-  // Auth API caller (uses /auth endpoint)
+  // Auth API caller (uses /auth endpoint) - no credentials needed, tokens returned in body
   const callAuthApi = useCallback(async (endpoint, options = {}) => {
     const url = `${AUTH_URL}${endpoint}`;
     setLoading(true);
@@ -115,7 +119,6 @@ const useApi = () => {
 
     try {
       const response = await fetch(url, {
-        credentials: "include",
         headers: {
           "Content-Type": "application/json",
           ...(options.headers || {}),

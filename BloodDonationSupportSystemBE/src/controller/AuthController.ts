@@ -87,28 +87,18 @@ class AuthController {
         return ResponseHandle.responseError(res, null, 'Tài khoản của bạn đã bị khóa', 403)
       }
 
-      // Set cookies for tokens
-      const cookieOptions = {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'none' as const,
-        maxAge: (cognitoResult.data?.expiresIn || 3600) * 1000
-      }
-
-      res.cookie('accessToken', cognitoResult.data?.accessToken, cookieOptions)
-      res.cookie('idToken', cognitoResult.data?.idToken, cookieOptions)
-      res.cookie('refreshToken', cognitoResult.data?.refreshToken, {
-        ...cookieOptions,
-        maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
-      })
-
+      // Return tokens in response body (not cookies) to avoid CORS issues
       return ResponseHandle.responseSuccess(
         res,
         {
           user_id: dbUser?.user_id || cognitoResult.data?.user?.sub,
           user_name: cognitoResult.data?.user?.name || dbUser?.user_name,
           user_role: cognitoResult.data?.user?.role || dbUser?.user_role || 'member',
-          email: cognitoResult.data?.user?.email
+          email: cognitoResult.data?.user?.email,
+          accessToken: cognitoResult.data?.accessToken,
+          idToken: cognitoResult.data?.idToken,
+          refreshToken: cognitoResult.data?.refreshToken,
+          expiresIn: cognitoResult.data?.expiresIn
         },
         `Xin chào, ${cognitoResult.data?.user?.name || email}`,
         200
@@ -215,23 +205,13 @@ class AuthController {
    */
   public async logout(req: Request, res: Response): Promise<any> {
     try {
-      const accessToken = req.cookies?.accessToken
+      // Get token from Authorization header
+      const authHeader = req.headers.authorization
+      const accessToken = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : null
 
       if (accessToken) {
         await CognitoService.signOut(accessToken)
       }
-
-      // Clear all auth cookies
-      const cookieOptions = {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'none' as const
-      }
-
-      res.clearCookie('accessToken', cookieOptions)
-      res.clearCookie('idToken', cookieOptions)
-      res.clearCookie('refreshToken', cookieOptions)
-      res.clearCookie('token', cookieOptions) // Legacy cookie
 
       return ResponseHandle.responseSuccess(res, null, 'Đăng xuất thành công', 200)
     } catch (error) {
@@ -307,7 +287,9 @@ class AuthController {
    */
   public async getMe(req: Request, res: Response): Promise<any> {
     try {
-      const accessToken = req.cookies?.accessToken
+      // Get token from Authorization header
+      const authHeader = req.headers.authorization
+      const accessToken = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : null
 
       if (!accessToken) {
         return ResponseHandle.responseError(res, null, 'Unauthorized', 401)
