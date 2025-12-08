@@ -36,7 +36,7 @@ const ProtectedRoute = ({
       setTimeout(() => {
         navigate("/login", { replace: true });
       }, 100);
-    } catch (error) {
+    } catch {
       localStorage.removeItem("isLoggedIn");
       navigate("/login", { replace: true });
     }
@@ -77,13 +77,25 @@ const ProtectedRoute = ({
         // Route công khai có restricted (login/register)
         if (!requireAuth && restricted) {
           if (isLoggedIn) {
-            // Lấy user qua API để chuyển hướng đúng role
-            try {
-              const res = await getCurrentUser();
-              setUser(res.data);
-              setIsAuthorized(false); // Sẽ chuyển hướng phía dưới
-            } catch {
-              setIsAuthorized(true);
+            // Đọc user từ localStorage trước (đã được lưu khi login)
+            const storedUser = localStorage.getItem("user");
+            if (storedUser) {
+              try {
+                const userData = JSON.parse(storedUser);
+                setUser(userData);
+                setIsAuthorized(false); // Sẽ chuyển hướng phía dưới
+              } catch {
+                setIsAuthorized(true);
+              }
+            } else {
+              // Fallback: gọi API nếu không có trong localStorage
+              try {
+                const res = await getCurrentUser();
+                setUser(res.data);
+                setIsAuthorized(false);
+              } catch {
+                setIsAuthorized(true);
+              }
             }
           } else {
             setIsAuthorized(true);
@@ -101,34 +113,62 @@ const ProtectedRoute = ({
           return;
         }
 
-        // Lấy user info từ API
+        // Lấy user info - ưu tiên từ localStorage trước
         let userInfo = null;
-        try {
-          const res = await getCurrentUser();
-          userInfo = res.data;
-          setUser(userInfo);
-        } catch (error) {
-          await handleLogoutAndRedirect("Phiên đăng nhập đã hết hạn");
-          setIsAuthorized(false);
-          setIsLoading(false);
-          return;
+        const storedUser = localStorage.getItem("user");
+        
+        if (storedUser) {
+          try {
+            userInfo = JSON.parse(storedUser);
+            setUser(userInfo);
+          } catch {
+            // Invalid JSON, try API
+          }
+        }
+        
+        // Nếu không có trong localStorage, gọi API
+        if (!userInfo) {
+          try {
+            const res = await getCurrentUser();
+            userInfo = res.data;
+            setUser(userInfo);
+            // Lưu vào localStorage để dùng sau
+            localStorage.setItem("user", JSON.stringify(userInfo));
+          } catch (error) {
+            console.error("getCurrentUser error:", error);
+            await handleLogoutAndRedirect("Phiên đăng nhập đã hết hạn");
+            setIsAuthorized(false);
+            setIsLoading(false);
+            return;
+          }
         }
 
         // Kiểm tra role nếu cần
-        if (allowedRoles) {
+        if (allowedRoles && userInfo) {
           const userRole = (userInfo.user_role || "").trim().toLowerCase();
           const normalizedAllowedRoles = allowedRoles.map(r => r.toLowerCase());
           if (normalizedAllowedRoles.includes(userRole)) {
             setIsAuthorized(true);
           } else {
-            await handleLogoutAndRedirect("Bạn không có quyền truy cập trang này.\nVui lòng đăng nhập bằng tài khoản có quyền phù hợp.");
+            toast.error("Bạn không có quyền truy cập trang này.", {
+              position: "top-center",
+              autoClose: 3000
+            });
+            // Redirect về trang phù hợp với role thay vì logout
+            if (userRole === "admin") {
+              navigate("/admin", { replace: true });
+            } else if (userRole === "staff") {
+              navigate("/dashboard", { replace: true });
+            } else {
+              navigate("/", { replace: true });
+            }
             setIsAuthorized(false);
           }
         } else {
           setIsAuthorized(true);
         }
         setIsLoading(false);
-      } catch (error) {
+      } catch {
         await handleLogoutAndRedirect("Đã xảy ra lỗi xác thực");
         setIsAuthorized(false);
         setIsLoading(false);

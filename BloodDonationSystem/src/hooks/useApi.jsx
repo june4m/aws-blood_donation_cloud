@@ -106,7 +106,7 @@ const useApi = () => {
         setLoading(false);
       }
     },
-    [clearAuthData]
+    [BASE_URL, clearAuthData]
   );
 
   // Auth API caller (uses /auth endpoint)
