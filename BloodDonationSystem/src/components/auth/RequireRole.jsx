@@ -4,10 +4,10 @@ import { useEffect, useState } from "react";
 import useApi from "../../hooks/useApi";
 import Swal from "sweetalert2";
 
-const ProtectedRoute = ({ 
-  allowedRoles = null, 
-  requireAuth = false, 
-  restricted = false 
+const ProtectedRoute = ({
+  allowedRoles = null,
+  requireAuth = false,
+  restricted = false,
 }) => {
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -25,13 +25,13 @@ const ProtectedRoute = ({
         await logout();
       }
       localStorage.removeItem("isLoggedIn");
-      
+
       // Hiển thị toast trước
       toast.error(message, {
         position: "top-center",
-        autoClose: 3000
+        autoClose: 3000,
       });
-      
+
       // Delay một chút để toast có thể hiển thị
       setTimeout(() => {
         navigate("/login", { replace: true });
@@ -45,20 +45,20 @@ const ProtectedRoute = ({
   // Hàm hiển thị popup đăng nhập
   const showLoginPopup = async () => {
     const result = await Swal.fire({
-      title: 'Lưu ý',
-      text: 'Vui lòng đăng nhập để sử dụng chức năng này.',
-      icon: 'warning',
+      title: "Lưu ý",
+      text: "Vui lòng đăng nhập để sử dụng chức năng này.",
+      icon: "warning",
       showCancelButton: true,
-      confirmButtonColor: '#3085d6',
-      cancelButtonColor: '#d33',
-      confirmButtonText: 'Xác nhận',
-      cancelButtonText: 'Hủy'
+      confirmButtonColor: "#3085d6",
+      cancelButtonColor: "#d33",
+      confirmButtonText: "Xác nhận",
+      cancelButtonText: "Hủy",
     });
-    
+
     if (result.isConfirmed) {
       navigate("/login", { state: { from: location }, replace: true });
-    }else if (!result.isConfirmed){
-      navigate("/")
+    } else if (!result.isConfirmed) {
+      navigate("/");
     }
   };
 
@@ -116,7 +116,7 @@ const ProtectedRoute = ({
         // Lấy user info - ưu tiên từ localStorage trước
         let userInfo = null;
         const storedUser = localStorage.getItem("user");
-        
+
         if (storedUser) {
           try {
             userInfo = JSON.parse(storedUser);
@@ -125,7 +125,7 @@ const ProtectedRoute = ({
             // Invalid JSON, try API
           }
         }
-        
+
         // Nếu không có trong localStorage, gọi API
         if (!userInfo) {
           try {
@@ -146,13 +146,15 @@ const ProtectedRoute = ({
         // Kiểm tra role nếu cần
         if (allowedRoles && userInfo) {
           const userRole = (userInfo.user_role || "").trim().toLowerCase();
-          const normalizedAllowedRoles = allowedRoles.map(r => r.toLowerCase());
+          const normalizedAllowedRoles = allowedRoles.map((r) =>
+            r.toLowerCase()
+          );
           if (normalizedAllowedRoles.includes(userRole)) {
             setIsAuthorized(true);
           } else {
             toast.error("Bạn không có quyền truy cập trang này.", {
               position: "top-center",
-              autoClose: 3000
+              autoClose: 3000,
             });
             // Redirect về trang phù hợp với role thay vì logout
             if (userRole === "admin") {

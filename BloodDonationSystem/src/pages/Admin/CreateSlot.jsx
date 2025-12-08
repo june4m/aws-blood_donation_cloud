@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence} from "framer-motion";
 import useApi from "../../hooks/useApi";
 
 /**
@@ -145,8 +145,8 @@ export default function CreateSlot() {
     );
 
     let successCount = 0;
-    const errorDetails = [];
-    const totalSlots = datesInRange.length;
+    // const errorDetails = [];
+    // const totalSlots = datesInRange.length;
 
     // Dừng ngay khi gặp lỗi đầu tiên
     for (const date of datesInRange) {
@@ -164,12 +164,16 @@ export default function CreateSlot() {
         // Lưu lỗi đầu tiên và DỪNG
         const errorMessage =
           err.response?.data?.message || err.message || "Lỗi không xác định";
-        
+
         setMessage({
-          text: `❌ Tạo ca thất bại!\n\nLỗi tại ngày ${new Date(date).toLocaleDateString("vi-VN")} (${formData.Start_Time} - ${formData.End_Time}):\n${errorMessage}\n\n⚠️ Đã tạo thành công ${successCount} ca trước đó.`,
+          text: `❌ Tạo ca thất bại!\n\nLỗi tại ngày ${new Date(
+            date
+          ).toLocaleDateString("vi-VN")} (${formData.Start_Time} - ${
+            formData.End_Time
+          }):\n${errorMessage}\n\n⚠️ Đã tạo thành công ${successCount} ca trước đó.`,
           type: "error",
         });
-        
+
         setCreatingSlots(false);
         setShowConfirm(false);
         return; // DỪNG TẠI ĐÂY
@@ -181,7 +185,7 @@ export default function CreateSlot() {
       text: `✅ Tạo thành công tất cả ${successCount} ca hiến máu`,
       type: "success",
     });
-    
+
     // Reset form khi thành công hoàn toàn
     setFormData({
       Start_Date: "",
@@ -251,9 +255,7 @@ export default function CreateSlot() {
               dateError ? "border-red-500" : "border-gray-300"
             } rounded px-3 py-2`}
             required
-            min={
-              formData.Start_Date || new Date().toISOString().split("T")[0]
-            }
+            min={formData.Start_Date || new Date().toISOString().split("T")[0]}
           />
           {dateError && (
             <p className="text-red-500 text-xs mt-1">{dateError}</p>
