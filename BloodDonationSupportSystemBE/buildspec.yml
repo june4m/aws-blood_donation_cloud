@@ -34,7 +34,7 @@ phases:
       - echo "Updating Lambda function..."
       - aws lambda update-function-code --function-name $LAMBDA_FUNCTION_NAME --zip-file fileb://deployment-package.zip
       - echo "Updating Lambda handler configuration..."
-      - aws lambda update-function-configuration --function-name $LAMBDA_FUNCTION_NAME --handler lambda.handler
+      - aws lambda update-function-configuration --function-name $LAMBDA_FUNCTION_NAME --handler src/lambda.handler
       - echo "Deployment completed successfully!"
 
 artifacts:

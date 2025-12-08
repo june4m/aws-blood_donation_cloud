@@ -35,7 +35,7 @@ Resources:
       FunctionName: !Sub '${Environment}-${ProjectName}-backend'
       Description: Main backend API for DaiVietBlood
       Runtime: nodejs18.x
-      Handler: lambda.handler
+      Handler: src/lambda.handler
       Role: !Ref LambdaExecutionRoleArn
       Timeout: 30
       MemorySize: 512
