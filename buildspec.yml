@@ -25,6 +25,8 @@ phases:
     commands:
       - echo "Deploying to Lambda..."
       - aws lambda update-function-code --function-name $LAMBDA_FUNCTION_NAME --zip-file fileb://$CODEBUILD_SRC_DIR/deployment-package.zip
+      - echo "Waiting for Lambda update to complete..."
+      - aws lambda wait function-updated --function-name $LAMBDA_FUNCTION_NAME
       - aws lambda update-function-configuration --function-name $LAMBDA_FUNCTION_NAME --handler src/lambda.handler
       - echo "Done!"
 
