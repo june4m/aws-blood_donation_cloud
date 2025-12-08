@@ -127,6 +127,27 @@ Resources:
       SubnetId: !Ref PublicSubnet2
 
   # ============================================
+  # NAT GATEWAY (for Lambda to access Cognito)
+  # ============================================
+  NatGatewayEIP:
+    Type: AWS::EC2::EIP
+    DependsOn: InternetGatewayAttachment
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: !Sub '${Environment}-${ProjectName}-nat-eip'
+
+  NatGateway:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt NatGatewayEIP.AllocationId
+      SubnetId: !Ref PublicSubnet1
+      Tags:
+        - Key: Name
+          Value: !Sub '${Environment}-${ProjectName}-nat'
+
+  # ============================================
   # ROUTE TABLES - PRIVATE
   # ============================================
   PrivateRouteTable:
@@ -136,6 +157,13 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub '${Environment}-${ProjectName}-private-rt'
+
+  PrivateRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGateway
 
   PrivateSubnet1RouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
