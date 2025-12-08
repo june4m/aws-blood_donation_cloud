@@ -1,39 +1,38 @@
 version: 0.2
 
-env:
-  variables:
-    BACKEND_DIR: BloodDonationSupportSystemBE
-
 phases:
   install:
     runtime-versions:
       nodejs: 18
     commands:
+      - echo "Current directory:" && pwd
+      - echo "Listing files:" && ls -la
       - echo "Installing dependencies..."
-      - cd $BACKEND_DIR && npm ci
+      - cd BloodDonationSupportSystemBE && npm ci
 
   pre_build:
     commands:
       - echo "Running linting..."
-      - cd $BACKEND_DIR && npm run lint || true
-      - echo "Pre-build completed"
+      - cd BloodDonationSupportSystemBE && npm run lint || true
 
   build:
     commands:
+      - echo "Current directory:" && pwd
+      - echo "Listing files:" && ls -la
       - echo "Building the application..."
-      - cd $BACKEND_DIR && npm run build
+      - cd BloodDonationSupportSystemBE && npm run build
       - echo "Creating deployment package..."
-      - cd $BACKEND_DIR && cp package.json dist/
-      - cd $BACKEND_DIR/dist && npm install --production --ignore-scripts
-      - cd $BACKEND_DIR/dist && zip -r ../deployment-package.zip .
+      - cp BloodDonationSupportSystemBE/package.json BloodDonationSupportSystemBE/dist/
+      - cd BloodDonationSupportSystemBE/dist && npm install --production --ignore-scripts
+      - cd BloodDonationSupportSystemBE/dist && zip -r ../deployment-package.zip .
+      - echo "Listing deployment package:" && ls -la BloodDonationSupportSystemBE/
 
   post_build:
     commands:
       - echo "Updating Lambda function..."
-      - aws lambda update-function-code --function-name $LAMBDA_FUNCTION_NAME --zip-file fileb://$BACKEND_DIR/deployment-package.zip
-      - echo "Updating Lambda handler configuration..."
+      - aws lambda update-function-code --function-name $LAMBDA_FUNCTION_NAME --zip-file fileb://BloodDonationSupportSystemBE/deployment-package.zip
       - aws lambda update-function-configuration --function-name $LAMBDA_FUNCTION_NAME --handler src/lambda.handler
-      - echo "Deployment completed successfully!"
+      - echo "Deployment completed!"
 
 artifacts:
   files:
