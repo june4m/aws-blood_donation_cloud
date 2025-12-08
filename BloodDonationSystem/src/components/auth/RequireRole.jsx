@@ -212,9 +212,11 @@ const ProtectedRoute = ({
     // Trang login/register khi user đã đăng nhập
     if (restricted && user) {
       // Hỗ trợ cả user_role và User_Role
-      const userRole = (user.user_role || user.User_Role || "").trim().toLowerCase();
+      const userRole = (user.user_role || user.User_Role || "")
+        .trim()
+        .toLowerCase();
       console.log("Redirecting logged-in user, role:", userRole);
-      
+
       if (userRole === "admin") {
         return <Navigate to="/admin" replace />;
       } else if (userRole === "staff") {

@@ -137,13 +137,29 @@ class AuthController {
         return ResponseHandle.responseError(res, null, cognitoResult.message, cognitoResult.statusCode)
       }
 
+      // Determine user role - prioritize database role if Cognito returns 'member' (default)
+      // This handles cases where user exists in DB with a role but hasn't been added to Cognito group
+      const cognitoRole = cognitoResult.data?.user?.role
+      const dbRole = dbUser?.user_role
+      let finalRole = 'member'
+      
+      // If Cognito has a specific role (not 'member'), use it
+      // Otherwise, use database role if available
+      if (cognitoRole && cognitoRole !== 'member') {
+        finalRole = cognitoRole
+      } else if (dbRole) {
+        finalRole = dbRole
+      }
+      
+      console.log('Role determination:', { cognitoRole, dbRole, finalRole })
+
       // Return tokens in response body (not cookies) to avoid CORS issues
       return ResponseHandle.responseSuccess(
         res,
         {
           user_id: dbUser?.user_id || cognitoResult.data?.user?.sub,
           user_name: cognitoResult.data?.user?.name || dbUser?.user_name,
-          user_role: cognitoResult.data?.user?.role || dbUser?.user_role || 'member',
+          user_role: finalRole,
           email: cognitoResult.data?.user?.email,
           accessToken: cognitoResult.data?.accessToken,
           idToken: cognitoResult.data?.idToken,
