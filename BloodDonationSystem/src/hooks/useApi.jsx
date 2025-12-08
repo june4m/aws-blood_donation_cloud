@@ -109,7 +109,7 @@ const useApi = () => {
     [clearAuthData]
   );
 
-  // Auth API caller (uses /auth endpoint) - no credentials needed, tokens returned in body
+  // Auth API caller (uses /auth endpoint)
   const callAuthApi = useCallback(
     async (endpoint, options = {}) => {
       const url = `${AUTH_URL}${endpoint}`;
@@ -118,10 +118,15 @@ const useApi = () => {
 
       console.log("Auth API Request:", url);
 
+      // Get token from localStorage for authenticated endpoints
+      const userData = localStorage.getItem("user");
+      const token = userData ? JSON.parse(userData).accessToken : null;
+
       try {
         const response = await fetch(url, {
           headers: {
             "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
             ...(options.headers || {}),
           },
           ...options,
