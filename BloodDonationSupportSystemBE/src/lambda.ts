@@ -1,4 +1,4 @@
-import serverless from 'serverless-http'
+﻿import serverless from 'serverless-http'
 import express from 'express'
 import cors from 'cors'
 import cookieParser from 'cookie-parser'
@@ -12,12 +12,17 @@ app.use(cors())
 app.use(express.json())
 app.use(cookieParser())
 
-// Routes
+// Routes - support both with and without /dev prefix (API Gateway stage)
 app.use('/api', router)
+app.use('/dev/api', router)
 app.use('/email', emailRouter)
+app.use('/dev/email', emailRouter)
 
 // Health check endpoint
-app.get('/health', (req, res) => {
+app.get('/health', (_req, res) => {
+  res.json({ status: 'healthy', timestamp: new Date().toISOString() })
+})
+app.get('/dev/health', (_req, res) => {
   res.json({ status: 'healthy', timestamp: new Date().toISOString() })
 })
 
