@@ -76,9 +76,19 @@ app.get('/dev/health', (_req, res) => {
 
 // Wrapper handler to pre-process event body
 const serverlessHandler = serverless(app, {
-  request: (request: any, event: any) => {
-    // Pass the original event body to request for debugging
+  request: (request: any, event: any, context: any) => {
+    // Pass the original event body to request
     request.lambdaEvent = event
+    
+    // If body is a string, parse it and set to request.body
+    if (event.body && typeof event.body === 'string') {
+      try {
+        request.body = JSON.parse(event.body)
+        console.log('Set parsed body in serverless request:', JSON.stringify(request.body))
+      } catch (e) {
+        // Not JSON
+      }
+    }
   }
 })
 
@@ -89,14 +99,26 @@ export const handler = async (event: any, context: any) => {
     method: event.requestContext?.http?.method || event.httpMethod,
     bodyType: typeof event.body,
     isBase64Encoded: event.isBase64Encoded,
-    bodyPreview: event.body ? event.body.substring(0, 200) : null
+    bodyPreview: event.body ? (typeof event.body === 'string' ? event.body.substring(0, 200) : 'non-string') : null
   }))
 
   // Pre-process body before passing to serverless-http
   if (event.body) {
+    // Decode base64 if needed
     if (event.isBase64Encoded) {
       event.body = Buffer.from(event.body, 'base64').toString('utf8')
       event.isBase64Encoded = false
+    }
+    
+    // Parse JSON string body
+    if (typeof event.body === 'string') {
+      try {
+        // Store parsed body for later use
+        const parsedBody = JSON.parse(event.body)
+        console.log('Parsed body in handler:', JSON.stringify(parsedBody))
+      } catch (e) {
+        // Not JSON, leave as is
+      }
     }
   }
   
