@@ -1,0 +1,99 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'DaiVietBlood - Layer 3: Database (RDS MySQL)'
+
+Parameters:
+  Environment:
+    Type: String
+  ProjectName:
+    Type: String
+  DBUsername:
+    Type: String
+    NoEcho: true
+  DBPassword:
+    Type: String
+    NoEcho: true
+  DBName:
+    Type: String
+  PrivateSubnet1:
+    Type: String
+  PrivateSubnet2:
+    Type: String
+  RDSSecurityGroupId:
+    Type: String
+
+Resources:
+  # ============================================
+  # DB SUBNET GROUP
+  # ============================================
+  DBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupName: !Sub '${Environment}-${ProjectName}-db-subnet-group'
+      DBSubnetGroupDescription: Subnet group for RDS MySQL
+      SubnetIds:
+        - !Ref PrivateSubnet1
+        - !Ref PrivateSubnet2
+      Tags:
+        - Key: Name
+          Value: !Sub '${Environment}-${ProjectName}-db-subnet-group'
+
+  # ============================================
+  # RDS MYSQL INSTANCE
+  # ============================================
+  RDSInstance:
+    Type: AWS::RDS::DBInstance
+    DeletionPolicy: Snapshot
+    UpdateReplacePolicy: Snapshot
+    Properties:
+      DBInstanceIdentifier: !Sub '${Environment}-${ProjectName}-mysql'
+      DBInstanceClass: db.t3.micro
+      Engine: mysql
+      EngineVersion: '8.0.39'
+      MasterUsername: !Ref DBUsername
+      MasterUserPassword: !Ref DBPassword
+      DBName: !Ref DBName
+      AllocatedStorage: 20
+      MaxAllocatedStorage: 100
+      StorageType: gp2
+      StorageEncrypted: true
+      VPCSecurityGroups:
+        - !Ref RDSSecurityGroupId
+      DBSubnetGroupName: !Ref DBSubnetGroup
+      PubliclyAccessible: false
+      MultiAZ: false
+      BackupRetentionPeriod: 0
+      PreferredMaintenanceWindow: 'Mon:04:00-Mon:05:00'
+      DeletionProtection: false
+      EnablePerformanceInsights: false
+      AutoMinorVersionUpgrade: true
+      CopyTagsToSnapshot: true
+      Tags:
+        - Key: Name
+          Value: !Sub '${Environment}-${ProjectName}-mysql'
+        - Key: Environment
+          Value: !Ref Environment
+
+Outputs:
+  RDSEndpoint:
+    Description: RDS MySQL Endpoint
+    Value: !GetAtt RDSInstance.Endpoint.Address
+    Export:
+      Name: !Sub '${Environment}-${ProjectName}-RDSEndpoint'
+
+  RDSPort:
+    Description: RDS MySQL Port
+    Value: !GetAtt RDSInstance.Endpoint.Port
+    Export:
+      Name: !Sub '${Environment}-${ProjectName}-RDSPort'
+
+  RDSInstanceId:
+    Description: RDS Instance Identifier
+    Value: !Ref RDSInstance
+    Export:
+      Name: !Sub '${Environment}-${ProjectName}-RDSInstanceId'
+
+  DBName:
+    Description: Database Name
+    Value: !Ref DBName
+    Export:
+      Name: !Sub '${Environment}-${ProjectName}-DBName'

@@ -1,0 +1,224 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'DaiVietBlood - Master Stack (Orchestrates all nested stacks)'
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues: [dev, staging, prod]
+    Description: Environment name
+
+  ProjectName:
+    Type: String
+    Default: daivietblood
+    Description: Project name for resource naming
+
+  DBUsername:
+    Type: String
+    Default: nodeuser
+    NoEcho: true
+
+  DBPassword:
+    Type: String
+    NoEcho: true
+    MinLength: 8
+
+  DBName:
+    Type: String
+    Default: BloodDonationSupportSystem
+
+  GitHubOwner:
+    Type: String
+    Description: GitHub repository owner
+
+  GitHubRepo:
+    Type: String
+    Default: BloodDonationSupportSystemBE
+
+  GitHubBranch:
+    Type: String
+    Default: main
+
+  GitHubOAuthToken:
+    Type: String
+    NoEcho: true
+
+  # S3 bucket containing nested templates
+  TemplateBucketName:
+    Type: String
+    Description: S3 bucket containing CloudFormation templates
+
+Resources:
+  # ============================================
+  # LAYER 1: NETWORKING (VPC, Subnets, etc.)
+  # ============================================
+  NetworkingStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub 'https://${TemplateBucketName}.s3.amazonaws.com/cloudformation/01-networking.yaml'
+      Parameters:
+        Environment: !Ref Environment
+        ProjectName: !Ref ProjectName
+      Tags:
+        - Key: Layer
+          Value: Networking
+
+  # ============================================
+  # LAYER 2: SECURITY (IAM Roles, Security Groups)
+  # ============================================
+  SecurityStack:
+    Type: AWS::CloudFormation::Stack
+    DependsOn: NetworkingStack
+    Properties:
+      TemplateURL: !Sub 'https://${TemplateBucketName}.s3.amazonaws.com/cloudformation/02-security.yaml'
+      Parameters:
+        Environment: !Ref Environment
+        ProjectName: !Ref ProjectName
+        VPCId: !GetAtt NetworkingStack.Outputs.VPCId
+      Tags:
+        - Key: Layer
+          Value: Security
+
+  # ============================================
+  # LAYER 3: DATABASE (RDS MySQL)
+  # ============================================
+  DatabaseStack:
+    Type: AWS::CloudFormation::Stack
+    DependsOn: SecurityStack
+    Properties:
+      TemplateURL: !Sub 'https://${TemplateBucketName}.s3.amazonaws.com/cloudformation/03-database.yaml'
+      Parameters:
+        Environment: !Ref Environment
+        ProjectName: !Ref ProjectName
+        DBUsername: !Ref DBUsername
+        DBPassword: !Ref DBPassword
+        DBName: !Ref DBName
+        PrivateSubnet1: !GetAtt NetworkingStack.Outputs.PrivateSubnet1
+        PrivateSubnet2: !GetAtt NetworkingStack.Outputs.PrivateSubnet2
+        RDSSecurityGroupId: !GetAtt SecurityStack.Outputs.RDSSecurityGroupId
+      Tags:
+        - Key: Layer
+          Value: Database
+
+  # ============================================
+  # LAYER 4: STORAGE (S3 Buckets)
+  # ============================================
+  StorageStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub 'https://${TemplateBucketName}.s3.amazonaws.com/cloudformation/04-storage.yaml'
+      Parameters:
+        Environment: !Ref Environment
+        ProjectName: !Ref ProjectName
+      Tags:
+        - Key: Layer
+          Value: Storage
+
+  # ============================================
+  # LAYER 5: COMPUTE (Lambda Functions)
+  # ============================================
+  ComputeStack:
+    Type: AWS::CloudFormation::Stack
+    DependsOn: 
+      - DatabaseStack
+      - SecurityStack
+    Properties:
+      TemplateURL: !Sub 'https://${TemplateBucketName}.s3.amazonaws.com/cloudformation/05-compute.yaml'
+      Parameters:
+        Environment: !Ref Environment
+        ProjectName: !Ref ProjectName
+        DBEndpoint: !GetAtt DatabaseStack.Outputs.RDSEndpoint
+        DBUsername: !Ref DBUsername
+        DBPassword: !Ref DBPassword
+        DBName: !Ref DBName
+        LambdaSecurityGroupId: !GetAtt SecurityStack.Outputs.LambdaSecurityGroupId
+        PrivateSubnet1: !GetAtt NetworkingStack.Outputs.PrivateSubnet1
+        PrivateSubnet2: !GetAtt NetworkingStack.Outputs.PrivateSubnet2
+        LambdaExecutionRoleArn: !GetAtt SecurityStack.Outputs.LambdaExecutionRoleArn
+      Tags:
+        - Key: Layer
+          Value: Compute
+
+  # ============================================
+  # LAYER 6: API (API Gateway)
+  # ============================================
+  ApiStack:
+    Type: AWS::CloudFormation::Stack
+    DependsOn: ComputeStack
+    Properties:
+      TemplateURL: !Sub 'https://${TemplateBucketName}.s3.amazonaws.com/cloudformation/06-api.yaml'
+      Parameters:
+        Environment: !Ref Environment
+        ProjectName: !Ref ProjectName
+        LambdaFunctionArn: !GetAtt ComputeStack.Outputs.LambdaFunctionArn
+        LambdaFunctionName: !GetAtt ComputeStack.Outputs.LambdaFunctionName
+      Tags:
+        - Key: Layer
+          Value: API
+
+  # ============================================
+  # LAYER 7: CI/CD (CodePipeline, CodeBuild)
+  # ============================================
+  CICDStack:
+    Type: AWS::CloudFormation::Stack
+    DependsOn:
+      - ComputeStack
+      - StorageStack
+    Properties:
+      TemplateURL: !Sub 'https://${TemplateBucketName}.s3.amazonaws.com/cloudformation/07-cicd.yaml'
+      Parameters:
+        Environment: !Ref Environment
+        ProjectName: !Ref ProjectName
+        GitHubOwner: !Ref GitHubOwner
+        GitHubRepo: !Ref GitHubRepo
+        GitHubBranch: !Ref GitHubBranch
+        GitHubOAuthToken: !Ref GitHubOAuthToken
+        ArtifactBucketName: !GetAtt StorageStack.Outputs.ArtifactBucketName
+        LambdaFunctionName: !GetAtt ComputeStack.Outputs.LambdaFunctionName
+      Tags:
+        - Key: Layer
+          Value: CICD
+
+  # ============================================
+  # LAYER 8: MONITORING (CloudWatch)
+  # ============================================
+  MonitoringStack:
+    Type: AWS::CloudFormation::Stack
+    DependsOn:
+      - ComputeStack
+      - DatabaseStack
+    Properties:
+      TemplateURL: !Sub 'https://${TemplateBucketName}.s3.amazonaws.com/cloudformation/08-monitoring.yaml'
+      Parameters:
+        Environment: !Ref Environment
+        ProjectName: !Ref ProjectName
+        LambdaFunctionName: !GetAtt ComputeStack.Outputs.LambdaFunctionName
+        RDSInstanceId: !GetAtt DatabaseStack.Outputs.RDSInstanceId
+      Tags:
+        - Key: Layer
+          Value: Monitoring
+
+Outputs:
+  VPCId:
+    Description: VPC ID
+    Value: !GetAtt NetworkingStack.Outputs.VPCId
+
+  RDSEndpoint:
+    Description: RDS MySQL Endpoint
+    Value: !GetAtt DatabaseStack.Outputs.RDSEndpoint
+
+  ApiGatewayUrl:
+    Description: API Gateway URL
+    Value: !GetAtt ApiStack.Outputs.ApiGatewayUrl
+
+  LambdaFunctionArn:
+    Description: Lambda Function ARN
+    Value: !GetAtt ComputeStack.Outputs.LambdaFunctionArn
+
+  ArtifactBucketName:
+    Description: S3 Artifact Bucket
+    Value: !GetAtt StorageStack.Outputs.ArtifactBucketName
+
+  PipelineName:
+    Description: CodePipeline Name
+    Value: !GetAtt CICDStack.Outputs.PipelineName

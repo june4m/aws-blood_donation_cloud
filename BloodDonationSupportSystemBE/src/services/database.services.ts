@@ -1,29 +1,32 @@
-import sql, { ConnectionPool, config as SqlConfig } from 'mssql'
+import mysql, { Pool, PoolConnection, RowDataPacket, ResultSetHeader } from 'mysql2/promise'
 import dotenv from 'dotenv'
 dotenv.config()
 
 class DatabaseServices {
   private static instance: DatabaseServices
-  private pool: ConnectionPool
+  private pool: Pool
 
   private constructor() {
-    const sqlConfig: SqlConfig = {
+    this.pool = mysql.createPool({
+      host: process.env.DB_SERVER!,
+      port: parseInt(process.env.DB_PORT || '3306'),
       user: process.env.DB_USERNAME!,
       password: process.env.DB_PASSWORD!,
-      server: process.env.DB_SERVER!,
       database: process.env.DB_NAME!,
-      options: {
-        encrypt: false,
-        trustServerCertificate: true,
+      waitForConnections: true,
+      connectionLimit: 10,
+      queueLimit: 0,
+      enableKeepAlive: true,
+      keepAliveInitialDelay: 0
+    })
 
-      }
-    }
-
-    this.pool = new sql.ConnectionPool(sqlConfig)
-    this.pool
-      .connect()
-      .then(() => console.log('Connected to SQL Server'))
-      .catch((err) => console.error('Database connect error', err))
+    // Test connection
+    this.pool.getConnection()
+      .then((conn: PoolConnection) => {
+        console.log('Connected to MySQL Database')
+        conn.release()
+      })
+      .catch((err: Error) => console.error('Database connect error', err))
   }
 
   public static getInstance(): DatabaseServices {
@@ -34,36 +37,35 @@ class DatabaseServices {
   }
 
   public async query(queryText: string, params?: any[]): Promise<any> {
-    const request = this.pool.request()
-
-    if (params && params.length > 0) {
-      // Tự động gán input như @param1, @param2...
-      params.forEach((value, index) => {
-        request.input(`param${index + 1}`, value)
-      })
-
-      // Thay ? bằng @param1, @param2.....
-      let count = 0
-      queryText = queryText.replace(/\?/g, () => `@param${++count}`)
+    try {
+      const [rows] = await this.pool.execute<RowDataPacket[]>(queryText, params || [])
+      return rows
+    } catch (error) {
+      console.error('Query error:', error)
+      throw error
     }
-
-    const result = await request.query(queryText)
-    return result.recordset
   }
+
   public async queryParam(queryText: string, params?: any[]): Promise<any> {
-    const request = this.pool.request()
-
-    if (params && params.length > 0) {
-      params.forEach((value, index) => {
-        request.input(`param${index + 1}`, value)
-      })
-
-      let count = 0
-      queryText = queryText.replace(/\?/g, () => `@param${++count}`)
+    try {
+      const [result] = await this.pool.execute<ResultSetHeader>(queryText, params || [])
+      return {
+        recordset: Array.isArray(result) ? result : [],
+        rowsAffected: [result.affectedRows],
+        affectedRows: result.affectedRows
+      }
+    } catch (error) {
+      console.error('QueryParam error:', error)
+      throw error
     }
+  }
 
-    const result = await request.query(queryText)
-    return result // trả về toàn bộ result, không chỉ recordset
+  public async getConnection(): Promise<PoolConnection> {
+    return this.pool.getConnection()
+  }
+
+  public async close(): Promise<void> {
+    await this.pool.end()
   }
 }
 

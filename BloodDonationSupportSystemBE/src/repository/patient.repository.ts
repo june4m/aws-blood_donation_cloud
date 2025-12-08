@@ -5,10 +5,11 @@ import Database from '../services/database.services'
 export class PatientDetailRepository {
   public async createNextPatientId(): Promise<string> {
     const sql = `
-    SELECT TOP 1 Patient_ID
-    FROM Patient_Detail
-    ORDER BY CAST(SUBSTRING(Patient_ID, 2, LEN(Patient_ID) - 1) AS INT) DESC
-  `
+      SELECT Patient_ID
+      FROM Patient_Detail
+      ORDER BY CAST(SUBSTRING(Patient_ID, 2, LENGTH(Patient_ID) - 1) AS UNSIGNED) DESC
+      LIMIT 1
+    `
     const result = await Database.query(sql)
     let nextId = 'P001'
     if (result.length > 0) {
@@ -34,21 +35,22 @@ export class PatientDetailRepository {
   public async addPatientDetail(patientDetailData: PatientDetail): Promise<any> {
     let newPatientId = 'P001'
     const lastId = `
-          SELECT TOP 1 Patient_ID
-          FROM Patient_Detail
-          ORDER BY CAST(SUBSTRING(Patient_ID, 2, LEN(Patient_ID) - 1) AS INT) DESC
-          `
+      SELECT Patient_ID
+      FROM Patient_Detail
+      ORDER BY CAST(SUBSTRING(Patient_ID, 2, LENGTH(Patient_ID) - 1) AS UNSIGNED) DESC
+      LIMIT 1
+    `
 
     const lastIdResult = await Database.query(lastId)
     console.log('lastIdResult: ', lastIdResult[0])
     if (lastIdResult.length > 0) {
-      const lastPatientId = lastIdResult[0].Patient_ID // ex: 'S005'
+      const lastPatientId = lastIdResult[0].Patient_ID
       console.log('lastPatientId: ', lastPatientId)
-      const numericPart = parseInt(lastPatientId.slice(1)) // => 5
+      const numericPart = parseInt(lastPatientId.slice(1))
       console.log('numericPart: ', numericPart)
       const nextId = numericPart + 1
       console.log('nextId: ', nextId)
-      newPatientId = 'P' + String(nextId).padStart(3, '0') // => 'S006'
+      newPatientId = 'P' + String(nextId).padStart(3, '0')
       console.log('newPatientId: ', newPatientId)
     }
 
@@ -64,7 +66,7 @@ export class PatientDetailRepository {
       patientDetailData.MedicalHistory,
       patientDetailData.Appointment_ID
     ]
-    const result = await Database.query(query, params)
+    const result = await Database.queryParam(query, params)
     if (result && result.affectedRows > 0) {
       return { success: true, patientId: newPatientId }
     } else {
@@ -75,9 +77,9 @@ export class PatientDetailRepository {
   public async addPatientDetailV2(patientDetailData: PatientDetailV2): Promise<{ success: boolean }> {
     console.log('addPatientDetailV2 Repo')
     const query = `
-    INSERT INTO Patient_Detail (Patient_ID, Description, Status, MedicalHistory, Appointment_ID)
-    VALUES (?, ?, ?, ?, ?)
-  `
+      INSERT INTO Patient_Detail (Patient_ID, Description, Status, MedicalHistory, Appointment_ID)
+      VALUES (?, ?, ?, ?, ?)
+    `
     const params = [
       patientDetailData.Patient_ID,
       patientDetailData.Description,
@@ -94,9 +96,9 @@ export class PatientDetailRepository {
 
   public async getPatientDetailByAppointmentId(appointmentId: string): Promise<any> {
     const query = `
-    SELECT * FROM Patient_Detail
-    WHERE Appointment_ID = ?
-  `
+      SELECT * FROM Patient_Detail
+      WHERE Appointment_ID = ?
+    `
     const result = await databaseServices.queryParam(query, [appointmentId])
     console.log('result getPatientDetailByAppointmentId: ', result)
     return result.recordset.length > 0 ? result.recordset[0] : null
@@ -154,13 +156,14 @@ export class PatientDetailRepository {
   public async getLatestPatientDetailOfUser(appointmentId: string): Promise<PatientDetailV2 | null> {
     console.log('getLatestPatientDetailOfUser Repo')
     const query = `
-    SELECT TOP 1 pd.*, ag.User_ID, s.Start_Time
-    FROM AppointmentGiving ag
-    JOIN Slot s ON ag.Slot_ID = s.Slot_ID
-    JOIN Patient_Detail pd ON ag.Appointment_ID = pd.Appointment_ID
-    WHERE ag.User_ID = ?
-    ORDER BY pd.Patient_ID DESC
-  `
+      SELECT pd.*, ag.User_ID, s.Start_Time
+      FROM AppointmentGiving ag
+      JOIN Slot s ON ag.Slot_ID = s.Slot_ID
+      JOIN Patient_Detail pd ON ag.Appointment_ID = pd.Appointment_ID
+      WHERE ag.User_ID = ?
+      ORDER BY pd.Patient_ID DESC
+      LIMIT 1
+    `
     const result = await Database.queryParam(query, [appointmentId])
     console.log('Repo result: ', result)
     if (result && result.recordset && result.recordset.length > 0) {
@@ -172,13 +175,13 @@ export class PatientDetailRepository {
   public async getAllPatientDetailsByUserId(userId: string): Promise<PatientDetailV2[]> {
     console.log('getAllPatientDetailsByUserId Repo')
     const query = `
-    SELECT pd.*, ag.User_ID, s.Start_Time, s.End_Time
-    FROM AppointmentGiving ag
-    JOIN Patient_Detail pd ON ag.Appointment_ID = pd.Appointment_ID
-    JOIN Slot s ON ag.Slot_ID = s.Slot_ID
-    WHERE ag.User_ID = ?
-    ORDER BY pd.Patient_ID DESC
-  `
+      SELECT pd.*, ag.User_ID, s.Start_Time, s.End_Time
+      FROM AppointmentGiving ag
+      JOIN Patient_Detail pd ON ag.Appointment_ID = pd.Appointment_ID
+      JOIN Slot s ON ag.Slot_ID = s.Slot_ID
+      WHERE ag.User_ID = ?
+      ORDER BY pd.Patient_ID DESC
+    `
     const result = await Database.queryParam(query, [userId])
     console.log('getAllPatientDetailsByUserId result:', result)
 

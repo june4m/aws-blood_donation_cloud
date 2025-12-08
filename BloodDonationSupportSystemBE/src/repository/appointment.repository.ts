@@ -1,6 +1,4 @@
-import { param } from 'express-validator'
 import { Appointment } from './../models/schemas/slot.schema'
-
 import databaseServices from '~/services/database.services'
 import { AppointmentReminder } from '~/models/schemas/appointment.schema'
 
@@ -14,7 +12,7 @@ export class AppointmentRepository {
       U.Email AS Email,
       U.Phone As Phone,
       S.Slot_Date AS DATE,
-	  CONVERT(VARCHAR(5), B.Blood_group) +CONVERT(VARCHAR(5), B.RHFactor) AS BloodType,
+      CONCAT(B.Blood_group, B.RHFactor) AS BloodType,
       A.Volume,
       A.Status AS Status,
       S.Start_Time,
@@ -31,6 +29,7 @@ export class AppointmentRepository {
       throw error
     }
   }
+
   async deleteApointment(appointmentID: string) {
     console.log('Appointment repo delete')
     const query = `DELETE FROM AppointmentGiving WHERE Appointment_ID = ?`
@@ -39,12 +38,13 @@ export class AppointmentRepository {
       console.log('deleteAppointment repo result: ', result)
       return result
     } catch (error) {
-      throw new Error('Appointment ID not existsent to delete')
+      throw new Error('Appointment ID not existent to delete')
     }
   }
+
   async findAppointmentByID(appointmentID: string) {
     console.log('Appointment repo find Appointment')
-    const query = `select * from AppointmentGiving WHERE Appointment_ID = ?`
+    const query = `SELECT * FROM AppointmentGiving WHERE Appointment_ID = ?`
     try {
       const result = await databaseServices.queryParam(query, [appointmentID])
       return result
@@ -52,28 +52,6 @@ export class AppointmentRepository {
       throw new Error('Appointment ID not exist')
     }
   }
-  //Omit<T,K> kiểu có thể nhận tất cả mọi thứ trừ cột AppointmentID
-  // async editApointment(appointmentID: string, updates: Partial<Omit<Appointment, 'Appointment_ID'>>): Promise<Appointment>{
-  //     console.log("Appointment repo find Appointment");
-  //     const allowedFields:(keyof Omit<Appointment, 'Appointment_ID'>)[]=[
-  //         'User_ID',
-  //         'Slot_ID',
-  //         'Volume',
-  //         'Status'
-  //     ]
-  //     const setClaudes: string [] = []
-  //     const params: any[] = []
-  //     for(const field of allowedFields){
-  //         if(updates[field]!==undefined){
-  //             setClaudes.push(`${field} = ?`)
-  //             params.push(updates[field])
-  //         }
-  //     }
-  //     if(setClaudes.length ===0){
-  //         throw new Error('Nothing to update');
-  //     }
-
-  // }
 
   async updateVolume(appointmentId: string, volume: number): Promise<void> {
     console.log('updateVolume repository')
@@ -96,32 +74,32 @@ export class AppointmentRepository {
         FROM AppointmentGiving A
         JOIN Slot S ON A.Slot_ID = S.Slot_ID
         WHERE A.Appointment_ID = ?
-        `
+      `
       const result = await databaseServices.query(query, [appointmentId])
-      if (query.length === 0) {
+      if (result.length === 0) {
         throw new Error('Appointment not found or Slot not linked')
       }
 
       const { User_ID, Volume, Slot_Date, Start_Time } = result[0]
 
-      //format
+      // Format date and time
       const dateStr = new Date(Slot_Date).toISOString().split('T')[0]
       let timeStr = ''
       if (typeof Start_Time === 'string') {
         timeStr = Start_Time.substring(0, 8)
       } else if (Start_Time instanceof Date) {
-        timeStr = Start_Time.toISOString().substring(11, 19) // Lấy đúng giờ, phút, giây
+        timeStr = Start_Time.toISOString().substring(11, 19)
       } else {
         timeStr = '00:00:00'
       }
       const historyText = `Đã hiến ${Volume}ml vào ngày ${dateStr} lúc ${timeStr} | `
 
-      //lấy history hiện tại
+      // Get current history
       const getHistoryQuery = `SELECT History FROM Users WHERE User_ID = ?`
       const historyResult = await databaseServices.query(getHistoryQuery, [User_ID])
       const currentHistory = historyResult[0]?.History || ''
 
-      //nối history mới vào
+      // Append new history
       const newHistory = currentHistory + historyText
       const updateHistoryQuery = `UPDATE Users SET History = ? WHERE User_ID = ?`
       await databaseServices.query(updateHistoryQuery, [newHistory, User_ID])
@@ -131,21 +109,22 @@ export class AppointmentRepository {
       throw error
     }
   }
+
   async findBeetweenDate(start: Date, end: Date): Promise<AppointmentReminder[]> {
     try {
       const sql = `
-      SELECT
-        A.Appointment_ID,
-        U.User_Name,
-        U.Email,
-        S.Slot_Date,
-        CONVERT(varchar(8), S.Start_Time, 108) AS Start_Time
-      FROM AppointmentGiving A
-      JOIN Users U   ON A.User_ID = U.User_ID
-      JOIN Slot  S   ON A.Slot_ID = S.Slot_ID
-      WHERE S.Slot_Date >= ? AND S.Slot_Date <= ?
-      ORDER BY S.Slot_Date, S.Start_Time
-    `
+        SELECT
+          A.Appointment_ID,
+          U.User_Name,
+          U.Email,
+          S.Slot_Date,
+          TIME_FORMAT(S.Start_Time, '%H:%i:%s') AS Start_Time
+        FROM AppointmentGiving A
+        JOIN Users U ON A.User_ID = U.User_ID
+        JOIN Slot S ON A.Slot_ID = S.Slot_ID
+        WHERE S.Slot_Date >= ? AND S.Slot_Date <= ?
+        ORDER BY S.Slot_Date, S.Start_Time
+      `
       const result = await databaseServices.queryParam(sql, [start, end])
       return result.recordset ?? result
     } catch (error) {
@@ -157,9 +136,9 @@ export class AppointmentRepository {
   public async getAppointmentById(appointmentId: string): Promise<any | null> {
     console.log('getAppointmentById Appointment Repo')
     const query = `
-    SELECT Appointment_ID, User_ID, Slot_ID, Status
-    FROM AppointmentGiving
-    WHERE Appointment_ID = ?
+      SELECT Appointment_ID, User_ID, Slot_ID, Status
+      FROM AppointmentGiving
+      WHERE Appointment_ID = ?
     `
     const result = await databaseServices.queryParam(query, [appointmentId])
     console.log('getAppointmentById result: ', result)
@@ -188,7 +167,7 @@ export class AppointmentRepository {
     const params = [newStatus, appointmentId]
     const result = await databaseServices.queryParam(query, params)
     console.log('result trong repository: ', result)
-    if (result && result.rowsAffected && result.rowsAffected > 0) {
+    if (result && result.rowsAffected && result.rowsAffected[0] > 0) {
       return { success: true, message: 'Appointment status updated successfully' }
     }
 
@@ -209,7 +188,7 @@ export class AppointmentRepository {
       const result = await databaseServices.queryParam(query, params)
       console.log('Result from query:', result)
 
-      if (result && result.rowsAffected && result.rowsAffected > 0) {
+      if (result && result.rowsAffected && result.rowsAffected[0] > 0) {
         return { success: true, data: result }
       }
 
@@ -245,11 +224,11 @@ export class AppointmentRepository {
 
   public async getSlotDateByAppointmentId(appointmentId: string): Promise<any> {
     const query = `
-    SELECT s.Slot_Date
-    FROM AppointmentGiving ag
-    JOIN Slot s ON ag.Slot_ID = s.Slot_ID
-    WHERE ag.Appointment_ID = ?
-  `
+      SELECT s.Slot_Date
+      FROM AppointmentGiving ag
+      JOIN Slot s ON ag.Slot_ID = s.Slot_ID
+      WHERE ag.Appointment_ID = ?
+    `
     const result = await databaseServices.queryParam(query, [appointmentId])
     console.log('getSlotDateByAppointmentId Repo Result: ', result)
     return result.recordset[0] ?? null

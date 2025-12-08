@@ -4,9 +4,7 @@ import databaseServices from '~/services/database.services'
 export class BlogRepository {
   public async getBlogs(): Promise<any> {
     console.log('getBlog Repo')
-    const query = `
-        SELECT * FROM Blog
-    `
+    const query = `SELECT * FROM Blog`
     try {
       const result = await databaseServices.query(query)
       console.log('Repo result: ', result)
@@ -33,28 +31,29 @@ export class BlogRepository {
   public async createBlog(blogData: Blog): Promise<any> {
     let newBlogId = 'BL001'
     const lastId = `
-              SELECT TOP 1 Blog_ID
-              FROM Blog
-              ORDER BY CAST(SUBSTRING(Blog_ID, 3, LEN(Blog_ID) - 1) AS INT) DESC
-              `
+      SELECT Blog_ID
+      FROM Blog
+      ORDER BY CAST(SUBSTRING(Blog_ID, 3, LENGTH(Blog_ID) - 2) AS UNSIGNED) DESC
+      LIMIT 1
+    `
 
     const lastIdResult = await databaseServices.query(lastId)
     console.log('lastIdResult: ', lastIdResult[0])
     if (lastIdResult.length > 0) {
-      const lastBlogId = lastIdResult[0].Blog_ID // ex: 'S005'
-      console.log('lastPatientId: ', lastBlogId)
-      const numericPart = parseInt(lastBlogId.slice(2)) // => 5
+      const lastBlogId = lastIdResult[0].Blog_ID
+      console.log('lastBlogId: ', lastBlogId)
+      const numericPart = parseInt(lastBlogId.slice(2))
       console.log('numericPart: ', numericPart)
       const nextId = numericPart + 1
       console.log('nextId: ', nextId)
-      newBlogId = 'BL' + String(nextId).padStart(3, '0') // => 'S006'
+      newBlogId = 'BL' + String(nextId).padStart(3, '0')
       console.log('newBlogId: ', newBlogId)
     }
 
     const query = `
-    INSERT INTO Blog (Blog_ID, Title, Content, Pubished_At, Admin_ID, Image_url)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `
+      INSERT INTO Blog (Blog_ID, Title, Content, Pubished_At, Admin_ID, Image_url)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `
     const params = [
       newBlogId,
       blogData.title,

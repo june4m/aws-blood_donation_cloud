@@ -1,0 +1,137 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'DaiVietBlood - Layer 6: API (API Gateway)'
+
+Parameters:
+  Environment:
+    Type: String
+  ProjectName:
+    Type: String
+  LambdaFunctionArn:
+    Type: String
+  LambdaFunctionName:
+    Type: String
+
+Resources:
+  # ============================================
+  # HTTP API GATEWAY
+  # ============================================
+  HttpApi:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: !Sub '${Environment}-${ProjectName}-api'
+      Description: DaiVietBlood REST API
+      ProtocolType: HTTP
+      CorsConfiguration:
+        AllowOrigins:
+          - '*'
+        AllowMethods:
+          - GET
+          - POST
+          - PUT
+          - DELETE
+          - PATCH
+          - OPTIONS
+        AllowHeaders:
+          - Content-Type
+          - Authorization
+          - X-Amz-Date
+          - X-Api-Key
+          - X-Amz-Security-Token
+        ExposeHeaders:
+          - Content-Type
+          - Authorization
+        MaxAge: 86400
+      Tags:
+        Environment: !Ref Environment
+        Project: !Ref ProjectName
+
+  # ============================================
+  # LAMBDA INTEGRATION
+  # ============================================
+  LambdaIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref HttpApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !Ref LambdaFunctionArn
+      PayloadFormatVersion: '2.0'
+      TimeoutInMillis: 30000
+
+  # ============================================
+  # ROUTES
+  # ============================================
+  DefaultRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: '$default'
+      Target: !Sub 'integrations/${LambdaIntegration}'
+
+  ApiRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: 'ANY /api/{proxy+}'
+      Target: !Sub 'integrations/${LambdaIntegration}'
+
+  EmailRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: 'ANY /email/{proxy+}'
+      Target: !Sub 'integrations/${LambdaIntegration}'
+
+  HealthRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: 'GET /health'
+      Target: !Sub 'integrations/${LambdaIntegration}'
+
+  # ============================================
+  # STAGE
+  # ============================================
+  ApiStage:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      ApiId: !Ref HttpApi
+      StageName: !Ref Environment
+      AutoDeploy: true
+      AccessLogSettings:
+        DestinationArn: !GetAtt ApiAccessLogGroup.Arn
+        Format: '{"requestId":"$context.requestId","ip":"$context.identity.sourceIp","requestTime":"$context.requestTime","httpMethod":"$context.httpMethod","routeKey":"$context.routeKey","status":"$context.status","responseLength":"$context.responseLength","errorMessage":"$context.error.message"}'
+      Tags:
+        Environment: !Ref Environment
+
+  # ============================================
+  # LAMBDA PERMISSION
+  # ============================================
+  LambdaApiGatewayPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref LambdaFunctionName
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${HttpApi}/*'
+
+  # ============================================
+  # ACCESS LOG GROUP
+  # ============================================
+  ApiAccessLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/apigateway/${Environment}-${ProjectName}-api'
+      RetentionInDays: 14
+
+Outputs:
+  ApiGatewayUrl:
+    Description: API Gateway URL
+    Value: !Sub 'https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com/${Environment}'
+    Export:
+      Name: !Sub '${Environment}-${ProjectName}-ApiUrl'
+
+  ApiGatewayId:
+    Description: API Gateway ID
+    Value: !Ref HttpApi
+    Export:
+      Name: !Sub '${Environment}-${ProjectName}-ApiId'

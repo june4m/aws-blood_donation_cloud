@@ -1,0 +1,114 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'DaiVietBlood - Layer 4: Storage (S3 Buckets)'
+
+Parameters:
+  Environment:
+    Type: String
+  ProjectName:
+    Type: String
+
+Resources:
+  # ============================================
+  # ARTIFACT BUCKET (for CI/CD)
+  # ============================================
+  ArtifactBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !Sub '${Environment}-${ProjectName}-artifacts-${AWS::AccountId}'
+      VersioningConfiguration:
+        Status: Enabled
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteOldArtifacts
+            Status: Enabled
+            ExpirationInDays: 30
+            NoncurrentVersionExpirationInDays: 7
+      Tags:
+        - Key: Name
+          Value: !Sub '${Environment}-${ProjectName}-artifacts'
+        - Key: Purpose
+          Value: CI/CD Artifacts
+
+  # ============================================
+  # STATIC ASSETS BUCKET (for images, documents)
+  # ============================================
+  AssetsBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !Sub '${Environment}-${ProjectName}-assets-${AWS::AccountId}'
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders:
+              - '*'
+            AllowedMethods:
+              - GET
+              - PUT
+              - POST
+            AllowedOrigins:
+              - '*'
+            MaxAge: 3000
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: false
+        BlockPublicPolicy: false
+        IgnorePublicAcls: false
+        RestrictPublicBuckets: false
+      Tags:
+        - Key: Name
+          Value: !Sub '${Environment}-${ProjectName}-assets'
+        - Key: Purpose
+          Value: Static Assets
+
+  AssetsBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref AssetsBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: PublicReadGetObject
+            Effect: Allow
+            Principal: '*'
+            Action: s3:GetObject
+            Resource: !Sub '${AssetsBucket.Arn}/*'
+
+Outputs:
+  ArtifactBucketName:
+    Description: Artifact Bucket Name
+    Value: !Ref ArtifactBucket
+    Export:
+      Name: !Sub '${Environment}-${ProjectName}-ArtifactBucket'
+
+  ArtifactBucketArn:
+    Description: Artifact Bucket ARN
+    Value: !GetAtt ArtifactBucket.Arn
+    Export:
+      Name: !Sub '${Environment}-${ProjectName}-ArtifactBucketArn'
+
+  AssetsBucketName:
+    Description: Assets Bucket Name
+    Value: !Ref AssetsBucket
+    Export:
+      Name: !Sub '${Environment}-${ProjectName}-AssetsBucket'
+
+  AssetsBucketUrl:
+    Description: Assets Bucket URL
+    Value: !Sub 'https://${AssetsBucket}.s3.${AWS::Region}.amazonaws.com'
+    Export:
+      Name: !Sub '${Environment}-${ProjectName}-AssetsBucketUrl'

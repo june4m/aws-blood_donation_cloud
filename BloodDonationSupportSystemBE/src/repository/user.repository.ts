@@ -1,5 +1,4 @@
 import { body } from 'express-validator'
-
 import Database from '../services/database.services'
 import { User } from '~/models/schemas/user.schema'
 import { RegisterReqBody } from '~/models/schemas/requests/user.requests'
@@ -17,14 +16,14 @@ export class UserRepository {
     const rows = await databaseServices.query(
       `
       SELECT
-            User_ID   AS user_id,
-            Email     AS email,
-            Password  AS password,
-            User_Name AS user_name,
-            User_Role AS user_role,
-            isDelete  AS isDelete
-        FROM Users
-        WHERE LOWER(Email) = LOWER(?);
+        User_ID   AS user_id,
+        Email     AS email,
+        Password  AS password,
+        User_Name AS user_name,
+        User_Role AS user_role,
+        isDelete  AS isDelete
+      FROM Users
+      WHERE LOWER(Email) = LOWER(?)
       `,
       [email]
     )
@@ -43,22 +42,19 @@ export class UserRepository {
         U.Phone           AS phone,
         U.Gender          AS gender,
         U.Address         AS address,
-        CONVERT(VARCHAR(10), U.YOB, 23) AS date_of_birth,
+        DATE_FORMAT(U.YOB, '%Y-%m-%d') AS date_of_birth,
         U.BloodType_ID    AS bloodtype_id,
         B.Blood_group     AS blood_group,
-        (SELECT STRING_AGG(bg, ', ')
-		      FROM (
-            SELECT DISTINCT BT2.Blood_group AS bg
-            FROM   BloodCompatibility BC
-            JOIN   BloodType BT2 ON BC.Receiver_Blood_ID = BT2.BloodType_ID
-            WHERE  BC.Component_ID   = 'CP001'
-            AND  BC.Is_Compatible  = 1
-            AND  BC.Donor_Blood_ID = U.BloodType_ID
-          ) AS distinct_groups
-	      ) AS rbc_compatible_to
+        (SELECT GROUP_CONCAT(DISTINCT BT2.Blood_group SEPARATOR ', ')
+          FROM BloodCompatibility BC
+          JOIN BloodType BT2 ON BC.Receiver_Blood_ID = BT2.BloodType_ID
+          WHERE BC.Component_ID = 'CP001'
+            AND BC.Is_Compatible = 1
+            AND BC.Donor_Blood_ID = U.BloodType_ID
+        ) AS rbc_compatible_to
       FROM Users U
       LEFT JOIN BloodType B ON U.BloodType_ID = B.BloodType_ID 
-      WHERE U.User_ID = ? AND U.isDelete = '1';
+      WHERE U.User_ID = ? AND U.isDelete = '1'
       `,
       [userId]
     )
@@ -69,9 +65,8 @@ export class UserRepository {
     try {
       const result = await Database.query(
         `UPDATE Users
-            SET User_Role = ?
-            WHERE User_ID = ?
-            `,
+         SET User_Role = ?
+         WHERE User_ID = ?`,
         [role, userId]
       )
     } catch (error) {
@@ -79,6 +74,7 @@ export class UserRepository {
       throw error
     }
   }
+
   async update(userId: string, updates: Partial<User>): Promise<User> {
     try {
       const allowedUpdates: Partial<User> = {}
@@ -88,13 +84,29 @@ export class UserRepository {
       if (Object.keys(allowedUpdates).length === 0) {
         throw new Error('No valid fields to update')
       }
-      const query = `UPDATE Users SET ? WHERE User_ID = ? AND isDelete = '1'`
-      const result = await Database.query(query, [allowedUpdates, userId])
+
+      // Build dynamic update query for MySQL
+      const setClauses: string[] = []
+      const params: any[] = []
+      
+      if (allowedUpdates.phone !== undefined) {
+        setClauses.push('Phone = ?')
+        params.push(allowedUpdates.phone)
+      }
+      if (allowedUpdates.user_name !== undefined) {
+        setClauses.push('User_Name = ?')
+        params.push(allowedUpdates.user_name)
+      }
+      
+      params.push(userId)
+      const query = `UPDATE Users SET ${setClauses.join(', ')} WHERE User_ID = ? AND isDelete = '1'`
+      const result = await Database.queryParam(query, params)
+      
       if (result.affectedRows === 0) {
         throw new Error('No user found or update failed')
       }
       const updatedUser = await this.findById(userId)
-      if (!updatedUser) throw new Error('Update faileed to retrieve user')
+      if (!updatedUser) throw new Error('Update failed to retrieve user')
       return updatedUser
     } catch (error) {
       console.error('Error in update:', error)
@@ -105,7 +117,7 @@ export class UserRepository {
   async updateBloodType(userId: string, bloodType: string): Promise<User> {
     try {
       const query = `UPDATE Users SET Blood_Type = ? WHERE User_ID = ? AND isDelete = '1'`
-      const result = await Database.query(query, [bloodType, userId])
+      const result = await Database.queryParam(query, [bloodType, userId])
       if (result.affectedRows === 0) {
         throw new Error('No user found or update failed')
       }
@@ -122,8 +134,9 @@ export class UserRepository {
   async createAccount(body: Pick<RegisterReqBody, 'email' | 'password' | 'name' | 'date_of_birth'>): Promise<User> {
     const { email, password, name, date_of_birth } = body
     const lastRow = await databaseServices.query(
-      `SELECT TOP 1 User_ID FROM Users
-      ORDER BY CAST (SUBSTRING(User_ID,2,LEN(User_ID) - 1) AS INT) DESC`
+      `SELECT User_ID FROM Users
+       ORDER BY CAST(SUBSTRING(User_ID, 2, LENGTH(User_ID) - 1) AS UNSIGNED) DESC
+       LIMIT 1`
     )
     let newId = 'U001'
     if (lastRow.length) {
@@ -133,11 +146,11 @@ export class UserRepository {
     }
     const sql = `
       INSERT INTO Users
-        (User_ID, User_Name, YOB, Email, Password,Status, User_Role, Admin_ID, isDelete)
-      VALUES (@param1, @param2, @param3, @param4, @param5,'Active', 'member','U001','1')
-      `
+        (User_ID, User_Name, YOB, Email, Password, Status, User_Role, Admin_ID, isDelete)
+      VALUES (?, ?, ?, ?, ?, 'Active', 'member', 'U001', '1')
+    `
     await databaseServices.queryParam(sql, [newId, name, date_of_birth, email, password])
-    const created = await databaseServices.query(`SELECT * FROM Users WHERE User_ID = @param1`, [newId])
+    const created = await databaseServices.query(`SELECT * FROM Users WHERE User_ID = ?`, [newId])
     return created[0]
   }
 
@@ -202,9 +215,9 @@ export class UserRepository {
 
   public async getUserById(userId: string): Promise<any> {
     const query = `
-    SELECT * FROM Users
-    WHERE User_ID = ? AND isDelete = '1'
-  `
+      SELECT * FROM Users
+      WHERE User_ID = ? AND isDelete = '1'
+    `
     const result = await databaseServices.queryParam(query, [userId])
     console.log('result getUserById: ', result)
     return result.recordset.length > 0 ? result.recordset[0] : null
@@ -213,7 +226,7 @@ export class UserRepository {
   public async updatePatientId(userId: string, patientId: string): Promise<void> {
     console.log('updatePatientId repo')
     const query = `UPDATE Users SET Patient_ID = ? WHERE User_ID = ?`
-    const result = await Database.query(query, [patientId, userId])
+    const result = await Database.queryParam(query, [patientId, userId])
     console.log('updatePatientId result: ', result)
     return result
   }
@@ -221,11 +234,11 @@ export class UserRepository {
   public async getUserByAppointmentId(appointmentId: string): Promise<any> {
     console.log('getUserByAppointmentId Repo')
     const query = `
-    SELECT U.*
-    FROM AppointmentGiving AG
-    JOIN Users U ON AG.User_ID = U.User_ID
-    WHERE AG.Appointment_ID = ? AND U.isDelete = '1'
-  `
+      SELECT U.*
+      FROM AppointmentGiving AG
+      JOIN Users U ON AG.User_ID = U.User_ID
+      WHERE AG.Appointment_ID = ? AND U.isDelete = '1'
+    `
     const result = await databaseServices.queryParam(query, [appointmentId])
     console.log('result repo: ', result)
     return result.recordset.length > 0 ? result.recordset[0] : null
@@ -235,9 +248,9 @@ export class UserRepository {
     console.log('checkDuplicatePotential Repo')
 
     const query = `
-    SELECT 1
-    FROM PotentialDonor
-    WHERE User_ID = ? AND Status != 'Reject'
+      SELECT 1
+      FROM PotentialDonor
+      WHERE User_ID = ? AND Status != 'Reject'
     `
     const result = await databaseServices.queryParam(query, [userId])
 
@@ -247,13 +260,13 @@ export class UserRepository {
 
   public async addPotential(potential: PotentialDonor): Promise<any> {
     console.log('addPotential UserRepo')
-    console.log('CreateSlot Repository')
     let newPotentialId = 'PD001'
     const lastId = `
-          SELECT TOP 1 Potential_ID
-          FROM PotentialDonor
-          ORDER BY CAST(SUBSTRING(Potential_ID, 3, LEN(Potential_ID) - 1) AS INT) DESC
-          `
+      SELECT Potential_ID
+      FROM PotentialDonor
+      ORDER BY CAST(SUBSTRING(Potential_ID, 3, LENGTH(Potential_ID) - 2) AS UNSIGNED) DESC
+      LIMIT 1
+    `
 
     const lastIdResult = await Database.query(lastId)
     if (lastIdResult.length > 0) {
@@ -264,8 +277,8 @@ export class UserRepository {
     }
 
     const insertQuery = `
-    INSERT INTO PotentialDonor (Potential_ID, User_ID, Status, Note, Admin_ID)
-    VALUES (?, ?, 'Approved', ?, ?)
+      INSERT INTO PotentialDonor (Potential_ID, User_ID, Status, Note, Admin_ID)
+      VALUES (?, ?, 'Approved', ?, ?)
     `
     const params = [newPotentialId, potential.User_ID, potential.Note ?? null, potential.Admin_ID]
 
@@ -276,10 +289,10 @@ export class UserRepository {
   public async updatePotentialStatus(potentialId: string, newStatus: string): Promise<any> {
     console.log('updatePotentialStatus Repo')
     const query = `
-    UPDATE PotentialDonor
-    SET Status = ?
-    WHERE Potential_ID = ?
-  `
+      UPDATE PotentialDonor
+      SET Status = ?
+      WHERE Potential_ID = ?
+    `
     const result = await databaseServices.queryParam(query, [newStatus, potentialId])
     console.log('repo result: ', result)
     return result
@@ -288,10 +301,10 @@ export class UserRepository {
   public async getPotentialById(potentialId: string): Promise<any | null> {
     console.log('getPotentialById')
     const query = `
-    SELECT *
-    FROM PotentialDonor
-    WHERE Potential_ID = ?
-  `
+      SELECT *
+      FROM PotentialDonor
+      WHERE Potential_ID = ?
+    `
     const result = await databaseServices.queryParam(query, [potentialId])
     console.log('repo result: ', result)
     return result?.recordset?.length > 0 ? result.recordset[0] : null
@@ -301,16 +314,16 @@ export class UserRepository {
     console.log('getAllPotential Repo')
 
     const query = `
-    SELECT 
-      pd.Potential_ID,
-      pd.User_ID,
-      pd.Status,
-      pd.Note,
-      pd.Admin_ID,
-      u.User_Name,
-      u.Email
-    FROM PotentialDonor pd
-    JOIN Users u ON pd.User_ID = u.User_ID
+      SELECT 
+        pd.Potential_ID,
+        pd.User_ID,
+        pd.Status,
+        pd.Note,
+        pd.Admin_ID,
+        u.User_Name,
+        u.Email
+      FROM PotentialDonor pd
+      JOIN Users u ON pd.User_ID = u.User_ID
     `
     const result = await databaseServices.query(query)
     console.log('repo result:', result)

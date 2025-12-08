@@ -1,0 +1,168 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'DaiVietBlood - Layer 5: Compute (Lambda Functions)'
+
+Parameters:
+  Environment:
+    Type: String
+  ProjectName:
+    Type: String
+  DBEndpoint:
+    Type: String
+  DBUsername:
+    Type: String
+    NoEcho: true
+  DBPassword:
+    Type: String
+    NoEcho: true
+  DBName:
+    Type: String
+  LambdaSecurityGroupId:
+    Type: String
+  PrivateSubnet1:
+    Type: String
+  PrivateSubnet2:
+    Type: String
+  LambdaExecutionRoleArn:
+    Type: String
+
+Resources:
+  # ============================================
+  # MAIN BACKEND LAMBDA FUNCTION
+  # ============================================
+  BackendLambdaFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${Environment}-${ProjectName}-backend'
+      Description: Main backend API for DaiVietBlood
+      Runtime: nodejs18.x
+      Handler: lambda.handler
+      Role: !Ref LambdaExecutionRoleArn
+      Timeout: 30
+      MemorySize: 512
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref LambdaSecurityGroupId
+        SubnetIds:
+          - !Ref PrivateSubnet1
+          - !Ref PrivateSubnet2
+      Environment:
+        Variables:
+          NODE_ENV: !Ref Environment
+          DB_SERVER: !Ref DBEndpoint
+          DB_PORT: '3306'
+          DB_USERNAME: !Ref DBUsername
+          DB_PASSWORD: !Ref DBPassword
+          DB_NAME: !Ref DBName
+      Code:
+        ZipFile: |
+          exports.handler = async (event) => {
+            return {
+              statusCode: 200,
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ message: 'Placeholder - Deploy via CI/CD' })
+            };
+          };
+      Tags:
+        - Key: Name
+          Value: !Sub '${Environment}-${ProjectName}-backend'
+        - Key: Environment
+          Value: !Ref Environment
+
+  # ============================================
+  # SCHEDULER LAMBDA (for cron jobs)
+  # ============================================
+  SchedulerLambdaFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${Environment}-${ProjectName}-scheduler'
+      Description: Scheduled tasks (email reminders, blood expiry check)
+      Runtime: nodejs18.x
+      Handler: scheduler.handler
+      Role: !Ref LambdaExecutionRoleArn
+      Timeout: 60
+      MemorySize: 256
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref LambdaSecurityGroupId
+        SubnetIds:
+          - !Ref PrivateSubnet1
+          - !Ref PrivateSubnet2
+      Environment:
+        Variables:
+          NODE_ENV: !Ref Environment
+          DB_SERVER: !Ref DBEndpoint
+          DB_PORT: '3306'
+          DB_USERNAME: !Ref DBUsername
+          DB_PASSWORD: !Ref DBPassword
+          DB_NAME: !Ref DBName
+      Code:
+        ZipFile: |
+          exports.handler = async (event) => {
+            console.log('Scheduler triggered:', event);
+            return { statusCode: 200, body: 'Scheduler placeholder' };
+          };
+      Tags:
+        - Key: Name
+          Value: !Sub '${Environment}-${ProjectName}-scheduler'
+
+  # ============================================
+  # EVENTBRIDGE SCHEDULER RULES
+  # ============================================
+  DailyReminderRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !Sub '${Environment}-${ProjectName}-daily-reminder'
+      Description: Daily appointment reminder at 8 AM
+      ScheduleExpression: 'cron(0 8 * * ? *)'
+      State: ENABLED
+      Targets:
+        - Id: SchedulerLambda
+          Arn: !GetAtt SchedulerLambdaFunction.Arn
+          Input: '{"task": "appointment_reminder"}'
+
+  DailyReminderPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref SchedulerLambdaFunction
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt DailyReminderRule.Arn
+
+  BloodExpiryCheckRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !Sub '${Environment}-${ProjectName}-blood-expiry-check'
+      Description: Check blood expiry daily at midnight
+      ScheduleExpression: 'cron(0 0 * * ? *)'
+      State: ENABLED
+      Targets:
+        - Id: SchedulerLambda
+          Arn: !GetAtt SchedulerLambdaFunction.Arn
+          Input: '{"task": "blood_expiry_check"}'
+
+  BloodExpiryCheckPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref SchedulerLambdaFunction
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt BloodExpiryCheckRule.Arn
+
+Outputs:
+  LambdaFunctionArn:
+    Description: Backend Lambda Function ARN
+    Value: !GetAtt BackendLambdaFunction.Arn
+    Export:
+      Name: !Sub '${Environment}-${ProjectName}-LambdaArn'
+
+  LambdaFunctionName:
+    Description: Backend Lambda Function Name
+    Value: !Ref BackendLambdaFunction
+    Export:
+      Name: !Sub '${Environment}-${ProjectName}-LambdaName'
+
+  SchedulerLambdaArn:
+    Description: Scheduler Lambda Function ARN
+    Value: !GetAtt SchedulerLambdaFunction.Arn
+    Export:
+      Name: !Sub '${Environment}-${ProjectName}-SchedulerLambdaArn'

@@ -142,3 +142,7 @@ dist
 .svelte-kit
 
 # End of https://www.toptal.com/developers/gitignore/api/node
+
+# Infrastructure secrets
+infrastructure/parameters.json
+infrastructure/parameters.example.json
