@@ -110,36 +110,39 @@ const useApi = () => {
   );
 
   // Auth API caller (uses /auth endpoint) - no credentials needed, tokens returned in body
-  const callAuthApi = useCallback(async (endpoint, options = {}) => {
-    const url = `${AUTH_URL}${endpoint}`;
-    setLoading(true);
-    setError(null);
+  const callAuthApi = useCallback(
+    async (endpoint, options = {}) => {
+      const url = `${AUTH_URL}${endpoint}`;
+      setLoading(true);
+      setError(null);
 
-    console.log("Auth API Request:", url);
+      console.log("Auth API Request:", url);
 
-    try {
-      const response = await fetch(url, {
-        headers: {
-          "Content-Type": "application/json",
-          ...(options.headers || {}),
-        },
-        ...options,
-      });
+      try {
+        const response = await fetch(url, {
+          headers: {
+            "Content-Type": "application/json",
+            ...(options.headers || {}),
+          },
+          ...options,
+        });
 
-      const data = await response.json();
+        const data = await response.json();
 
-      if (!response.ok) {
-        throw new Error(data.message || `HTTP Error: ${response.status}`);
+        if (!response.ok) {
+          throw new Error(data.message || `HTTP Error: ${response.status}`);
+        }
+
+        return data;
+      } catch (err) {
+        setError(err.message);
+        throw err;
+      } finally {
+        setLoading(false);
       }
-
-      return data;
-    } catch (err) {
-      setError(err.message);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    },
+    [AUTH_URL]
+  );
 
   // Auth APIs using Cognito
   const login = useCallback(

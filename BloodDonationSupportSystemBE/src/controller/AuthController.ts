@@ -74,17 +74,67 @@ class AuthController {
     }
 
     try {
-      // Authenticate with Cognito
-      const cognitoResult = await CognitoService.signIn(email.trim(), password)
+      // First, check if user exists in database
+      const dbUser = await this.userService.findUserLogin(email)
+      
+      // Check if user is banned
+      if (dbUser && dbUser.isDelete === false) {
+        return ResponseHandle.responseError(res, null, 'Tài khoản của bạn đã bị khóa', 403)
+      }
+
+      // Try Cognito authentication first
+      let cognitoResult = await CognitoService.signIn(email.trim(), password)
+
+      // If Cognito fails with "user not found", try database auth and migrate
+      if (!cognitoResult.success && cognitoResult.message.includes('Không tìm thấy tài khoản')) {
+        console.log('User not in Cognito, trying database auth...')
+        
+        if (dbUser) {
+          // Verify password with database
+          const dbAuthResult = await this.userService.authUser({ email, password })
+          
+          if (dbAuthResult.success) {
+            console.log('Database auth successful, migrating user to Cognito...')
+            
+            // Create user in Cognito
+            try {
+              const signUpResult = await CognitoService.adminCreateUser(
+                email,
+                password,
+                dbUser.user_name || email,
+                dbUser.user_role || 'member'
+              )
+              
+              if (signUpResult.success) {
+                // Try Cognito login again
+                cognitoResult = await CognitoService.signIn(email.trim(), password)
+              }
+            } catch (migrateError) {
+              console.error('Migration error:', migrateError)
+            }
+            
+            // If Cognito still fails, return database auth result
+            if (!cognitoResult.success) {
+              return ResponseHandle.responseSuccess(
+                res,
+                {
+                  user_id: dbAuthResult.data?.user_id,
+                  user_name: dbAuthResult.data?.user_name,
+                  user_role: dbAuthResult.data?.user_role,
+                  email: email,
+                  accessToken: null, // No Cognito token, frontend should handle this
+                  migrated: false
+                },
+                `Xin chào, ${dbAuthResult.data?.user_name || email}`,
+                200
+              )
+            }
+          }
+        }
+      }
 
       if (!cognitoResult.success) {
         return ResponseHandle.responseError(res, null, cognitoResult.message, cognitoResult.statusCode)
-      }
-
-      // Check if user exists in database and is not banned
-      const dbUser = await this.userService.findUserLogin(email)
-      if (dbUser && dbUser.isDelete === false) {
-        return ResponseHandle.responseError(res, null, 'Tài khoản của bạn đã bị khóa', 403)
       }
 
       // Return tokens in response body (not cookies) to avoid CORS issues
