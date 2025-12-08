@@ -17,7 +17,38 @@ const useApi = () => {
     localStorage.removeItem("user");
   }, []);
 
-  // Main API caller with credentials support
+  // Public API caller (no credentials - for public endpoints like blogs)
+  const callPublicApi = useCallback(async (endpoint, options = {}) => {
+    const url = `${BASE_URL}${endpoint}`;
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch(url, {
+        headers: {
+          "Content-Type": "application/json",
+          ...(options.headers || {}),
+        },
+        ...options,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || `HTTP Error: ${response.status}`);
+      }
+
+      return data;
+    } catch (err) {
+      setError(err.message);
+      console.error(`API Error [${endpoint}]:`, err.message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Main API caller with credentials support (for authenticated endpoints)
   const callApi = useCallback(
     async (endpoint, options = {}) => {
       const url = `${BASE_URL}${endpoint}`;
@@ -50,17 +81,13 @@ const useApi = () => {
         }
 
         const data = await response.json();
-        console.log("API response data:", data); // Debug log
 
-        // Xử lý response không thành công (400, 500, etc.)
         if (!response.ok) {
-          // Ưu tiên message từ server response
           const errorMessage =
             data.message || data.error || `HTTP Error: ${response.status}`;
           throw new Error(errorMessage);
         }
 
-        // Xử lý trường hợp server trả về success: false
         if (data.status === false && data.message) {
           throw new Error(data.message);
         }
@@ -168,8 +195,8 @@ const useApi = () => {
   }, [callAuthApi]);
 
   const getSlotList = useCallback(async () => {
-    return callApi("/getSlotList");
-  }, [callApi]);
+    return callPublicApi("/getSlotList");
+  }, [callPublicApi]);
 
   const registerSlot = useCallback(
     async (slotId, user_id, extraData = {}) => {
@@ -331,13 +358,13 @@ const useApi = () => {
     [callApi]
   );
 
-  // BLOG APIs
+  // BLOG APIs (public - no auth required)
   const fetchBlogs = useCallback(async () => {
-    const res = await callApi("/blogs");
+    const res = await callPublicApi("/blogs");
     return Array.isArray(res.data)
       ? res.data
       : res.data.blogs || res.data.data || [];
-  }, [callApi]);
+  }, [callPublicApi]);
 
   const createBlog = useCallback(
     async (blog) => {
@@ -493,28 +520,31 @@ const useApi = () => {
 
   const EMAIL_BASE_URL = import.meta.env.VITE_API_URL || "";
 
-  const fetchEmailApi = useCallback(async (endpoint, options = {}) => {
-    const url = `${EMAIL_BASE_URL}${endpoint}`;
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await fetch(url, {
-        headers: {
-          "Content-Type": "application/json",
-          ...(options.headers || {}),
-        },
-        ...options,
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.message || "Gửi mail thất bại");
-      return data;
-    } catch (err) {
-      setError(err.message);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, [EMAIL_BASE_URL]);
+  const fetchEmailApi = useCallback(
+    async (endpoint, options = {}) => {
+      const url = `${EMAIL_BASE_URL}${endpoint}`;
+      setLoading(true);
+      setError(null);
+      try {
+        const response = await fetch(url, {
+          headers: {
+            "Content-Type": "application/json",
+            ...(options.headers || {}),
+          },
+          ...options,
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || "Gửi mail thất bại");
+        return data;
+      } catch (err) {
+        setError(err.message);
+        throw err;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [EMAIL_BASE_URL]
+  );
 
   const sendRecoveryReminderEmail = useCallback(
     async (donorEmail, donorName) => {
@@ -604,6 +634,7 @@ const useApi = () => {
     loading,
     error,
     callApi,
+    callPublicApi,
     login,
     register,
     logout,
