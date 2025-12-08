@@ -357,7 +357,10 @@ class AuthController {
 
       // Get additional info from database
       const dbUser = await this.userService.findUserLogin(userInfo.email)
-      const groups = await CognitoService.getUserGroups(userInfo.email)
+
+      // Always use database role as source of truth
+      const finalRole = dbUser?.user_role || 'member'
+      console.log('GetMe - Using DB role:', finalRole)
 
       return ResponseHandle.responseSuccess(
         res,
@@ -365,7 +368,7 @@ class AuthController {
           user_id: dbUser?.user_id || userInfo.sub,
           email: userInfo.email,
           user_name: userInfo.name || dbUser?.user_name,
-          user_role: groups[0] || dbUser?.user_role || 'member',
+          user_role: finalRole,
           ...dbUser
         },
         'Lấy thông tin thành công',
