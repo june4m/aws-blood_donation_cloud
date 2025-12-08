@@ -1,4 +1,3 @@
-import { body } from 'express-validator'
 import Database from '../services/database.services'
 import { User } from '~/models/schemas/user.schema'
 import { RegisterReqBody } from '~/models/schemas/requests/user.requests'
@@ -88,7 +87,7 @@ export class UserRepository {
       // Build dynamic update query for MySQL
       const setClauses: string[] = []
       const params: any[] = []
-      
+
       if (allowedUpdates.phone !== undefined) {
         setClauses.push('Phone = ?')
         params.push(allowedUpdates.phone)
@@ -97,11 +96,11 @@ export class UserRepository {
         setClauses.push('User_Name = ?')
         params.push(allowedUpdates.user_name)
       }
-      
+
       params.push(userId)
       const query = `UPDATE Users SET ${setClauses.join(', ')} WHERE User_ID = ? AND isDelete = '1'`
       const result = await Database.queryParam(query, params)
-      
+
       if (result.affectedRows === 0) {
         throw new Error('No user found or update failed')
       }

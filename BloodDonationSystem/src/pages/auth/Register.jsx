@@ -107,18 +107,29 @@ export const RegisterPage = () => {
       return;
     }
     try {
-      await register({
+      const result = await register({
         email: form.email,
         password: form.password,
         confirm_password: form.confirm_password,
         name: form.name,
         date_of_birth: form.date_of_birth,
       });
-      toast.success("Đăng ký thành công! Vui lòng đăng nhập.", {
-        position: "top-center",
-        autoClose: 2000,
-      });
-      setTimeout(() => navigate("/login"), 2000);
+      
+      // Check if email confirmation is required (Cognito)
+      if (result.data?.requiresConfirmation) {
+        toast.success("Đăng ký thành công! Vui lòng kiểm tra email để xác thực.", {
+          position: "top-center",
+          autoClose: 3000,
+        });
+        // Navigate to confirm email page with email
+        setTimeout(() => navigate("/confirm-email", { state: { email: form.email } }), 2000);
+      } else {
+        toast.success("Đăng ký thành công! Vui lòng đăng nhập.", {
+          position: "top-center",
+          autoClose: 2000,
+        });
+        setTimeout(() => navigate("/login"), 2000);
+      }
     } catch (error) {
       toast.error(error.message || "Đăng ký thất bại", {
         position: "top-center",

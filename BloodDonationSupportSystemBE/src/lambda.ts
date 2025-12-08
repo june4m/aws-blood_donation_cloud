@@ -4,11 +4,32 @@ import cors from 'cors'
 import cookieParser from 'cookie-parser'
 import router from './routers/users.routers'
 import emailRouter from './routers/email.routers'
+import authRouter from './routers/auth.routers'
 
 const app = express()
 
-// Middleware
-app.use(cors())
+// CORS configuration for credentials (cookies)
+const allowedOrigins = [
+  'https://main.d1fnooytkqycdg.amplifyapp.com',
+  'http://localhost:5173',
+  'http://localhost:3000'
+]
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Allow requests with no origin (mobile apps, curl, etc.)
+      if (!origin) return callback(null, true)
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, origin)
+      }
+      return callback(null, allowedOrigins[0]) // Default to first allowed origin
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+  })
+)
 
 // Custom body parser for Lambda - parse JSON string body from API Gateway
 app.use((req: Request, _res: Response, next: NextFunction) => {
@@ -30,6 +51,8 @@ app.use(cookieParser())
 // Routes - support both with and without /dev prefix (API Gateway stage)
 app.use('/api', router)
 app.use('/dev/api', router)
+app.use('/auth', authRouter)
+app.use('/dev/auth', authRouter)
 app.use('/email', emailRouter)
 app.use('/dev/email', emailRouter)
 

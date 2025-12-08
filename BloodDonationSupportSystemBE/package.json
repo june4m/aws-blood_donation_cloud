@@ -4,6 +4,7 @@
   "description": "",
   "main": "index.js",
   "dependencies": {
+    "@aws-sdk/client-cognito-identity-provider": "^3.946.0",
     "@types/bcrypt": "^5.0.2",
     "@types/ms": "^0.7.31",
     "@types/nodemailer": "^6.4.17",
@@ -33,6 +34,7 @@
     "has-symbols": "^1.1.0",
     "has-tostringtag": "^1.0.2",
     "hasown": "^2.0.2",
+    "jsonwebtoken": "^9.0.2",
     "lodash": "^4.17.21",
     "math-intrinsics": "^1.1.0",
     "mime-db": "^1.52.0",
@@ -42,9 +44,8 @@
     "mysql2": "^3.11.0",
     "node-cron": "^4.2.1",
     "nodemailer": "^7.0.5",
-    "serverless-http": "^3.2.0",
     "proxy-from-env": "^1.1.0",
-    "jsonwebtoken": "^9.0.2"
+    "serverless-http": "^3.2.0"
   },
   "devDependencies": {
     "@types/aws-lambda": "^8.10.145",

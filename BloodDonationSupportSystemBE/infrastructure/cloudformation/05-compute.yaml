@@ -53,6 +53,10 @@ Resources:
           DB_USERNAME: !Ref DBUsername
           DB_PASSWORD: !Ref DBPassword
           DB_NAME: !Ref DBName
+          COGNITO_USER_POOL_ID: !ImportValue
+            Fn::Sub: '${Environment}-${ProjectName}-UserPoolId'
+          COGNITO_CLIENT_ID: !ImportValue
+            Fn::Sub: '${Environment}-${ProjectName}-UserPoolClientId'
       Code:
         ZipFile: |
           exports.handler = async (event) => {

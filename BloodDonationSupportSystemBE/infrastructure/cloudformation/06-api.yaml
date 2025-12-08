@@ -23,7 +23,9 @@ Resources:
       ProtocolType: HTTP
       CorsConfiguration:
         AllowOrigins:
-          - '*'
+          - 'https://main.d1fnooytkqycdg.amplifyapp.com'
+          - 'http://localhost:5173'
+          - 'http://localhost:3000'
         AllowMethods:
           - GET
           - POST
@@ -37,9 +39,12 @@ Resources:
           - X-Amz-Date
           - X-Api-Key
           - X-Amz-Security-Token
+          - X-Requested-With
         ExposeHeaders:
           - Content-Type
           - Authorization
+          - Set-Cookie
+        AllowCredentials: true
         MaxAge: 86400
       Tags:
         Environment: !Ref Environment
@@ -72,6 +77,13 @@ Resources:
     Properties:
       ApiId: !Ref HttpApi
       RouteKey: 'ANY /api/{proxy+}'
+      Target: !Sub 'integrations/${LambdaIntegration}'
+
+  AuthRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: 'ANY /auth/{proxy+}'
       Target: !Sub 'integrations/${LambdaIntegration}'
 
   EmailRoute:

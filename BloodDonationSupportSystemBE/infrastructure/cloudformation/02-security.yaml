@@ -74,6 +74,16 @@ Resources:
                   - ses:SendEmail
                   - ses:SendRawEmail
                 Resource: '*'
+              - Effect: Allow
+                Action:
+                  - cognito-idp:AdminGetUser
+                  - cognito-idp:AdminCreateUser
+                  - cognito-idp:AdminSetUserPassword
+                  - cognito-idp:AdminAddUserToGroup
+                  - cognito-idp:AdminListGroupsForUser
+                  - cognito-idp:AdminUpdateUserAttributes
+                  - cognito-idp:ListUsers
+                Resource: '*'
       Tags:
         - Key: Name
           Value: !Sub '${Environment}-${ProjectName}-lambda-role'
