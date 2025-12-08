@@ -1,8 +1,9 @@
 import { Request, Response } from 'express'
-import CognitoService from '~/services/cognito.services'
 import { UserService } from '~/services/user.services'
 import { ResponseHandle } from '~/utils/Response'
 import bcrypt from 'bcrypt'
+import { signToken, verifyToken } from '~/utils/jwt'
+import ms from 'ms'
 
 interface LoginBody {
   email: string
@@ -15,21 +16,6 @@ interface RegisterBody {
   confirm_password: string
   name: string
   date_of_birth: string
-}
-
-interface ConfirmBody {
-  email: string
-  code: string
-}
-
-interface ForgotPasswordBody {
-  email: string
-}
-
-interface ResetPasswordBody {
-  email: string
-  code: string
-  newPassword: string
 }
 
 class AuthController {
@@ -47,14 +33,11 @@ class AuthController {
   }
 
   /**
-   * Login with Cognito
+   * Login with Database + JWT
    */
   public async login(req: Request<{}, {}, LoginBody>, res: Response): Promise<any> {
-    console.log('=== Cognito Login ===')
-    console.log('Request body type:', typeof req.body)
-    console.log('Request body:', JSON.stringify(req.body))
+    console.log('=== Database Login ===')
 
-    // Handle case where body might be a string (from API Gateway)
     let body = req.body
     if (typeof body === 'string') {
       try {
@@ -74,87 +57,55 @@ class AuthController {
     }
 
     try {
-      // First, check if user exists in database
-      const dbUser = await this.userService.findUserLogin(email)
+      // Check if user exists
+      const user = await this.userService.findUserLogin(email)
+      if (!user) {
+        return ResponseHandle.responseError(res, null, 'Không tìm thấy tài khoản', 404)
+      }
 
       // Check if user is banned
-      if (dbUser && dbUser.isDelete === false) {
+      if (user.isDelete === false) {
         return ResponseHandle.responseError(res, null, 'Tài khoản của bạn đã bị khóa', 403)
       }
 
-      // Try Cognito authentication first
-      let cognitoResult = await CognitoService.signIn(email.trim(), password)
-
-      // If Cognito fails with "user not found", try database auth and migrate
-      if (!cognitoResult.success && cognitoResult.message.includes('Không tìm thấy tài khoản')) {
-        console.log('User not in Cognito, trying database auth...')
-
-        if (dbUser) {
-          // Verify password with database
-          const dbAuthResult = await this.userService.authUser({ email, password })
-
-          if (dbAuthResult.success) {
-            console.log('Database auth successful, migrating user to Cognito...')
-
-            // Create user in Cognito
-            try {
-              const signUpResult = await CognitoService.adminCreateUser(
-                email,
-                password,
-                dbUser.user_name || email,
-                dbUser.user_role || 'member'
-              )
-
-              if (signUpResult.success) {
-                // Try Cognito login again
-                cognitoResult = await CognitoService.signIn(email.trim(), password)
-              }
-            } catch (migrateError) {
-              console.error('Migration error:', migrateError)
-            }
-
-            // If Cognito still fails, return database auth result
-            if (!cognitoResult.success) {
-              return ResponseHandle.responseSuccess(
-                res,
-                {
-                  user_id: dbAuthResult.data?.user_id,
-                  user_name: dbAuthResult.data?.user_name,
-                  user_role: dbAuthResult.data?.user_role,
-                  email: email,
-                  accessToken: null, // No Cognito token, frontend should handle this
-                  migrated: false
-                },
-                `Xin chào, ${dbAuthResult.data?.user_name || email}`,
-                200
-              )
-            }
-          }
-        }
+      // Verify password
+      const authResult = await this.userService.authUser({ email, password })
+      if (!authResult.success) {
+        return ResponseHandle.responseError(res, null, authResult.message, authResult.statusCode || 400)
       }
 
-      if (!cognitoResult.success) {
-        return ResponseHandle.responseError(res, null, cognitoResult.message, cognitoResult.statusCode)
+      // Generate JWT token
+      const payload = {
+        user_id: authResult.data?.user_id,
+        user_name: authResult.data?.user_name,
+        user_role: authResult.data?.user_role,
+        email: email,
+        token_type: 'access_token'
       }
 
-      // Always use database role as the source of truth
-      const finalRole = dbUser?.user_role || 'member'
-      console.log('Using DB role:', finalRole)
+      const expiresIn = process.env.ACCESS_TOKEN_EXPIRE_IN || '1d'
+      const secret = (process.env.JWT_SECRET_ACCESS_TOKEN || process.env.JWT_SECRET) as string
 
-      // Return tokens in response body (not cookies) to avoid CORS issues
+      const accessToken = await signToken({
+        payload,
+        privateKey: secret,
+        options: { algorithm: 'HS256', expiresIn }
+      })
+
+      console.log('Login successful for:', email)
+      console.log('User role:', authResult.data?.user_role)
+
       return ResponseHandle.responseSuccess(
         res,
         {
-          user_id: dbUser?.user_id || cognitoResult.data?.user?.sub,
-          user_name: cognitoResult.data?.user?.name || dbUser?.user_name,
-          user_role: finalRole,
-          email: cognitoResult.data?.user?.email,
-          accessToken: cognitoResult.data?.accessToken,
-          idToken: cognitoResult.data?.idToken,
-          refreshToken: cognitoResult.data?.refreshToken,
-          expiresIn: cognitoResult.data?.expiresIn
+          user_id: authResult.data?.user_id,
+          user_name: authResult.data?.user_name,
+          user_role: authResult.data?.user_role,
+          email: email,
+          accessToken: accessToken,
+          expiresIn: typeof expiresIn === 'string' ? ms(expiresIn) / 1000 : 86400
         },
-        `Xin chào, ${cognitoResult.data?.user?.name || email}`,
+        `Xin chào, ${authResult.data?.user_name || email}`,
         200
       )
     } catch (error) {
@@ -164,10 +115,10 @@ class AuthController {
   }
 
   /**
-   * Register with Cognito
+   * Register new user
    */
   public async register(req: Request<{}, {}, RegisterBody>, res: Response): Promise<any> {
-    console.log('=== Cognito Register ===')
+    console.log('=== Database Register ===')
 
     let body = req.body
     if (typeof body === 'string') {
@@ -189,22 +140,15 @@ class AuthController {
     }
 
     try {
-      // Check if email exists in database
+      // Check if email exists
       const emailExists = await this.userService.checkEmailExists(email)
       if (emailExists) {
         return ResponseHandle.responseError(res, null, 'Email đã được sử dụng', 400)
       }
 
-      // Register with Cognito
-      const cognitoResult = await CognitoService.signUp(email, password, name)
-
-      if (!cognitoResult.success) {
-        return ResponseHandle.responseError(res, null, cognitoResult.message, cognitoResult.statusCode)
-      }
-
-      // Also create user in database
+      // Hash password and create user
       const hashedPassword = await bcrypt.hash(password, 10)
-      await this.userService.register({
+      const result = await this.userService.register({
         email,
         password: hashedPassword,
         name,
@@ -213,8 +157,8 @@ class AuthController {
 
       return ResponseHandle.responseSuccess(
         res,
-        { email, requiresConfirmation: true },
-        'Đăng ký thành công! Vui lòng kiểm tra email để xác thực tài khoản.',
+        { email, requiresConfirmation: false },
+        'Đăng ký thành công!',
         201
       )
     } catch (error: any) {
@@ -224,34 +168,10 @@ class AuthController {
   }
 
   /**
-   * Confirm email with verification code
+   * Confirm email (placeholder - not needed without Cognito)
    */
-  public async confirmEmail(req: Request<{}, {}, ConfirmBody>, res: Response): Promise<any> {
-    let body = req.body
-    if (typeof body === 'string') {
-      try {
-        body = JSON.parse(body)
-      } catch (e) { }
-    }
-
-    const { email, code } = body as ConfirmBody
-
-    if (!email || !code) {
-      return ResponseHandle.responseError(res, null, 'Email và mã xác thực là bắt buộc', 400)
-    }
-
-    try {
-      const result = await CognitoService.confirmSignUp(email, code)
-
-      if (!result.success) {
-        return ResponseHandle.responseError(res, null, result.message, result.statusCode)
-      }
-
-      return ResponseHandle.responseSuccess(res, null, 'Xác thực email thành công!', 200)
-    } catch (error) {
-      console.error('Confirm email error:', error)
-      return ResponseHandle.responseError(res, error, 'Xác thực thất bại', 500)
-    }
+  public async confirmEmail(req: Request, res: Response): Promise<any> {
+    return ResponseHandle.responseSuccess(res, null, 'Email đã được xác thực', 200)
   }
 
   /**
@@ -259,14 +179,7 @@ class AuthController {
    */
   public async logout(req: Request, res: Response): Promise<any> {
     try {
-      // Get token from Authorization header
-      const authHeader = req.headers.authorization
-      const accessToken = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : null
-
-      if (accessToken) {
-        await CognitoService.signOut(accessToken)
-      }
-
+      res.clearCookie('token', { httpOnly: true })
       return ResponseHandle.responseSuccess(res, null, 'Đăng xuất thành công', 200)
     } catch (error) {
       console.error('Logout error:', error)
@@ -275,73 +188,24 @@ class AuthController {
   }
 
   /**
-   * Forgot password
+   * Forgot password (placeholder)
    */
-  public async forgotPassword(req: Request<{}, {}, ForgotPasswordBody>, res: Response): Promise<any> {
-    let body = req.body
-    if (typeof body === 'string') {
-      try {
-        body = JSON.parse(body)
-      } catch (e) { }
-    }
-
-    const { email } = body as ForgotPasswordBody
-
-    if (!email) {
-      return ResponseHandle.responseError(res, null, 'Email là bắt buộc', 400)
-    }
-
-    try {
-      const result = await CognitoService.forgotPassword(email)
-
-      if (!result.success) {
-        return ResponseHandle.responseError(res, null, result.message, result.statusCode)
-      }
-
-      return ResponseHandle.responseSuccess(res, null, 'Mã đặt lại mật khẩu đã được gửi đến email của bạn', 200)
-    } catch (error) {
-      console.error('Forgot password error:', error)
-      return ResponseHandle.responseError(res, error, 'Gửi mã thất bại', 500)
-    }
+  public async forgotPassword(req: Request, res: Response): Promise<any> {
+    return ResponseHandle.responseError(res, null, 'Chức năng đang được phát triển', 501)
   }
 
   /**
-   * Reset password with code
+   * Reset password (placeholder)
    */
-  public async resetPassword(req: Request<{}, {}, ResetPasswordBody>, res: Response): Promise<any> {
-    let body = req.body
-    if (typeof body === 'string') {
-      try {
-        body = JSON.parse(body)
-      } catch (e) { }
-    }
-
-    const { email, code, newPassword } = body as ResetPasswordBody
-
-    if (!email || !code || !newPassword) {
-      return ResponseHandle.responseError(res, null, 'Vui lòng điền đầy đủ thông tin', 400)
-    }
-
-    try {
-      const result = await CognitoService.confirmForgotPassword(email, code, newPassword)
-
-      if (!result.success) {
-        return ResponseHandle.responseError(res, null, result.message, result.statusCode)
-      }
-
-      return ResponseHandle.responseSuccess(res, null, 'Đặt lại mật khẩu thành công', 200)
-    } catch (error) {
-      console.error('Reset password error:', error)
-      return ResponseHandle.responseError(res, error, 'Đặt lại mật khẩu thất bại', 500)
-    }
+  public async resetPassword(req: Request, res: Response): Promise<any> {
+    return ResponseHandle.responseError(res, null, 'Chức năng đang được phát triển', 501)
   }
 
   /**
-   * Get current user info
+   * Get current user info from JWT token
    */
   public async getMe(req: Request, res: Response): Promise<any> {
     try {
-      // Get token from Authorization header
       const authHeader = req.headers.authorization
       const accessToken = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : null
 
@@ -349,27 +213,27 @@ class AuthController {
         return ResponseHandle.responseError(res, null, 'Unauthorized', 401)
       }
 
-      const userInfo = await CognitoService.getUserInfo(accessToken)
+      // Verify JWT token
+      const secret = (process.env.JWT_SECRET_ACCESS_TOKEN || process.env.JWT_SECRET) as string
+      let decoded: any
 
-      if (!userInfo.email) {
-        return ResponseHandle.responseError(res, null, 'Token không hợp lệ', 401)
+      try {
+        decoded = await verifyToken({ token: accessToken, privateKey: secret })
+      } catch (err) {
+        return ResponseHandle.responseError(res, null, 'Token không hợp lệ hoặc đã hết hạn', 401)
       }
 
-      // Get additional info from database
-      const dbUser = await this.userService.findUserLogin(userInfo.email)
-
-      // Always use database role as source of truth
-      const finalRole = dbUser?.user_role || 'member'
-      console.log('GetMe - Using DB role:', finalRole)
+      // Get fresh user data from database
+      const dbUser = await this.userService.findUserLogin(decoded.email)
+      if (!dbUser) {
+        return ResponseHandle.responseError(res, null, 'Không tìm thấy người dùng', 404)
+      }
 
       return ResponseHandle.responseSuccess(
         res,
         {
-          user_id: dbUser?.user_id || userInfo.sub,
-          email: userInfo.email,
-          user_name: userInfo.name || dbUser?.user_name,
-          user_role: finalRole,
-          ...dbUser
+          ...dbUser,
+          user_role: dbUser.user_role
         },
         'Lấy thông tin thành công',
         200
