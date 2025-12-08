@@ -29,25 +29,30 @@ export const LoginPage = () => {
       });
 
       console.log("Login response data:", data);
-      console.log("User data:", data.data);
+
+      // Lưu thông tin người dùng
+      localStorage.setItem("isLoggedIn", "true");
+
 
       toast.success("Đăng nhập thành công!", {
         position: "top-center",
         autoClose: 2000,
       });
 
-      // Lấy role từ response - hỗ trợ cả user_role và User_Role
-      const userRole = (data.data?.user_role || data.data?.User_Role || "member").trim().toLowerCase();
-      console.log("User role after login:", userRole);
+      // Chuẩn hóa role và chờ một chút để đảm bảo localStorage được cập nhật
+      const userRole = (data.data.user_role || "").trim().toLowerCase();
+      console.log("Normalized role:", userRole);
 
-      // Redirect ngay lập tức theo role
-      if (userRole === "admin") {
-        navigate("/admin", { replace: true });
-      } else if (userRole === "staff") {
-        navigate("/dashboard", { replace: true });
-      } else {
-        navigate("/", { replace: true });
-      }
+      // Đợi localStorage được cập nhật hoàn toàn trước khi chuyển hướng
+      setTimeout(() => {
+        if (userRole === "admin") {
+          navigate("/admin", { replace: true });
+        } else if (userRole === "staff") {
+          navigate("/dashboard", { replace: true });
+        } else {
+          navigate("/", { replace: true });
+        }
+      }, 300);
     } catch (error) {
       toast.error(error.message || "Đăng nhập thất bại", {
         position: "top-center",

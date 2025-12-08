@@ -43,7 +43,6 @@ import AdminEmergencyRequest from "./pages/Admin/EmergencyRequest";
 import ProtectedRoute from "./components/auth/RequireRole";
 import AdminLayout from "./Layouts/LayoutAdmin";
 import { RegisterPage } from "./pages/auth/Register";
-import { ConfirmEmailPage } from "./pages/auth/ConfirmEmail";
 import ProfilePage from "./pages/auth/Profile";
 import BlogAdmin from "./pages/Admin/BlogAdmin";
 import ResetPasswordPage from "./pages/auth/ResetPassword";
@@ -78,7 +77,6 @@ function App() {
               <Route path="/forgot-password" element={<ForgotPasswordPage />} />
               <Route path="/reset-password" element={<ResetPasswordPage />} />
               <Route path="/register" element={<RegisterPage />} />
-              <Route path="/confirm-email" element={<ConfirmEmailPage />} />
             </Route>
           </Route>
 

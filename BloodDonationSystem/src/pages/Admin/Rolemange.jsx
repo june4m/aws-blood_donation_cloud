@@ -69,7 +69,7 @@ const RoleManagement = () => {
 
   useEffect(() => {
     fetchStaffs();
-  }, [fetchStaffs]);
+  }, []);
 
   const handleBan = (userId) => {
     setSelectedId(userId);
@@ -220,7 +220,7 @@ const RoleManagement = () => {
       // Lưu mảng User_ID của người tiềm năng đã approved
       setPotentialUserIds((res.data || []).map(item => item.User_ID));
       setShowPotentialPopup(true);
-    } catch {
+    } catch (err) {
       toast.error("Không lấy được danh sách người tiềm năng!");
     }
     setPotentialLoading(false);
@@ -231,7 +231,6 @@ const RoleManagement = () => {
       await updatePotentialStatus(potentialId, status);
       toast.success("Cập nhật trạng thái thành công!");
       handleShowPotentialList();
-    // eslint-disable-next-line no-unused-vars
     } catch (err) {
       toast.error("Cập nhật thất bại!");
     }

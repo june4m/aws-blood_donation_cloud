@@ -1,97 +1,61 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 
 const useApi = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const API_BASE = import.meta.env.VITE_API_URL || "";
-  const BASE_URL = `${API_BASE}/api`;
-  const AUTH_URL = `${API_BASE}/auth`;
+  // Use environment variable for API URL, fallback to /api for local development
+  const BASE_URL = import.meta.env.VITE_API_URL || "/api";
 
   // Auth utilities
   const isLoggedIn = useCallback(() => {
+    console.log("Checking login status...");
     return localStorage.getItem("isLoggedIn") === "true";
   }, []);
 
   const clearAuthData = useCallback(() => {
     localStorage.removeItem("isLoggedIn");
-    localStorage.removeItem("user");
   }, []);
 
-  // Public API caller (no credentials - for public endpoints like blogs)
-  const callPublicApi = useCallback(async (endpoint, options = {}) => {
-    const url = `${BASE_URL}${endpoint}`;
-    setLoading(true);
-    setError(null);
-
-    try {
-      const response = await fetch(url, {
-        headers: {
-          "Content-Type": "application/json",
-          ...(options.headers || {}),
-        },
-        ...options,
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || `HTTP Error: ${response.status}`);
-      }
-
-      return data;
-    } catch (err) {
-      setError(err.message);
-      console.error(`API Error [${endpoint}]:`, err.message);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  // Main API caller with token auth (for authenticated endpoints)
+  // Main API caller
   const callApi = useCallback(
     async (endpoint, options = {}) => {
       const url = `${BASE_URL}${endpoint}`;
       setLoading(true);
       setError(null);
 
-      console.log("API Request:", url);
-
-      // Get token from localStorage
-      const user = localStorage.getItem("user");
-      const token = user ? JSON.parse(user).accessToken : null;
-
       try {
         const response = await fetch(url, {
           headers: {
-            "Content-Type": "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-            ...(options.headers || {}),
+            'Content-Type': 'application/json',
+            ...(options.headers || {})
           },
-          ...options,
+          ...options
         });
 
-        console.log("API response status:", response.status);
+        console.log('API response status:', response.status);
 
         // Xử lý 401 - Authentication error
         if (response.status === 401) {
-          if (window.location.pathname !== "/login") {
+          if (window.location.pathname !== '/login') {
             clearAuthData();
             setTimeout(() => {
-              window.location.href = "/login";
+              window.location.href = '/login';
             }, 100);
           }
-          throw new Error("Session expired");
+          throw new Error('Session expired');
         }
 
         const data = await response.json();
+        console.log('API response data:', data); // Debug log
 
+        // Xử lý response không thành công (400, 500, etc.)
         if (!response.ok) {
-          const errorMessage =
-            data.message || data.error || `HTTP Error: ${response.status}`;
+          // Ưu tiên message từ server response
+          const errorMessage = data.message || data.error || `HTTP Error: ${response.status}`;
           throw new Error(errorMessage);
         }
 
+        // Xử lý trường hợp server trả về success: false
         if (data.status === false && data.message) {
           throw new Error(data.message);
         }
@@ -106,108 +70,57 @@ const useApi = () => {
         setLoading(false);
       }
     },
-    [BASE_URL, clearAuthData]
+    [clearAuthData]
   );
 
-  // Auth API caller (uses /auth endpoint)
-  const callAuthApi = useCallback(
-    async (endpoint, options = {}) => {
-      const url = `${AUTH_URL}${endpoint}`;
-      setLoading(true);
-      setError(null);
+  
 
-      console.log("Auth API Request:", url);
-
-      // Get token from localStorage for authenticated endpoints
-      const userData = localStorage.getItem("user");
-      const token = userData ? JSON.parse(userData).accessToken : null;
-
-      try {
-        const response = await fetch(url, {
-          headers: {
-            "Content-Type": "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-            ...(options.headers || {}),
-          },
-          ...options,
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-          throw new Error(data.message || `HTTP Error: ${response.status}`);
-        }
-
-        return data;
-      } catch (err) {
-        setError(err.message);
-        throw err;
-      } finally {
-        setLoading(false);
-      }
-    },
-    [AUTH_URL]
-  );
-
-  // Auth APIs using Cognito
+  // Auth APIs
   const login = useCallback(
     async (credentials) => {
-      console.log("Sending Cognito login request");
-
-      const result = await callAuthApi("/login", {
+      const result = await callApi("/login", {
         method: "POST",
         body: JSON.stringify(credentials),
       });
 
       if (result.status) {
         localStorage.setItem("isLoggedIn", "true");
-        localStorage.setItem("user", JSON.stringify(result.data));
       }
 
       return result;
     },
-    [callAuthApi]
+    [callApi]
   );
 
   const logout = useCallback(async () => {
     try {
-      await callAuthApi("/logout", { method: "POST" });
-    } catch {
+      await callApi("/logout", { method: "POST" });
+    } catch (error) {
       console.log("Logout failed, clearing local data");
     } finally {
       clearAuthData();
       window.location.href = "/login";
     }
-  }, [callAuthApi, clearAuthData]);
+  }, [callApi, clearAuthData]);
 
   const register = useCallback(
     async (userData) => {
-      return callAuthApi("/register", {
+      return callApi("/signup", {
         method: "POST",
         body: JSON.stringify(userData),
       });
     },
-    [callAuthApi]
-  );
-
-  const confirmEmail = useCallback(
-    async (email, code) => {
-      return callAuthApi("/confirm-email", {
-        method: "POST",
-        body: JSON.stringify({ email, code }),
-      });
-    },
-    [callAuthApi]
+    [callApi]
   );
 
   // Data APIs
   const getCurrentUser = useCallback(async () => {
-    return callAuthApi("/me");
-  }, [callAuthApi]);
+    return callApi("/getMe");
+  }, [callApi]);
 
   const getSlotList = useCallback(async () => {
-    return callPublicApi("/getSlotList");
-  }, [callPublicApi]);
+    return callApi("/getSlotList");
+  }, [callApi]);
 
   const registerSlot = useCallback(
     async (slotId, user_id, extraData = {}) => {
@@ -233,15 +146,12 @@ const useApi = () => {
     [callApi]
   );
 
-  const updateUser = useCallback(
-    async (userData) => {
-      return callApi("/profile", {
-        method: "PUT",
-        body: JSON.stringify(userData),
-      });
-    },
-    [callApi]
-  );
+  const updateUser = useCallback(async (userData) => {
+    return callApi('/profile', {
+      method: 'PUT',
+      body: JSON.stringify(userData)
+    });
+  }, [callApi]);
 
   const getBloodTypes = useCallback(async () => {
     return callApi("/bloodtypes");
@@ -251,26 +161,20 @@ const useApi = () => {
     return callApi("/appointment");
   }, [callApi]);
 
-  const addAppointmentVolume = useCallback(
-    async (appointmentId, volume) => {
-      return callApi(`/appointment/${appointmentId}/addVolume`, {
-        method: "POST",
-        body: JSON.stringify({ volume }),
-      });
-    },
-    [callApi]
-  );
+  const addAppointmentVolume = useCallback(async (appointmentId, volume) => {
+    return callApi(`/appointment/${appointmentId}/addVolume`, {
+      method: 'POST',
+      body: JSON.stringify({ volume })
+    });
+  }, [callApi]);
 
   //Emergency Request API
-  const addEmergencyRequest = useCallback(
-    async (requestData) => {
-      return callApi("/requestEmergencyBlood", {
-        method: "POST",
-        body: JSON.stringify(requestData),
-      });
-    },
-    [callApi]
-  );
+  const addEmergencyRequest = useCallback(async (requestData) => {
+    return callApi('/requestEmergencyBlood', {
+      method: 'POST',
+      body: JSON.stringify(requestData)
+    });
+  }, [callApi]);
 
   // Thêm API gọi addPatientDetail (BE: POST /appointment/:appointmentId/addPatient)
   const addPatientDetail = useCallback(
@@ -317,232 +221,174 @@ const useApi = () => {
     return callApi(`/appointment/details`);
   }, [callApi]);
 
-  const historyPatientByUser = useCallback(
-    async (appointmentId) => {
-      return callApi(`/patientDetail/${appointmentId}`);
-    },
-    [callApi]
-  );
-  const updatePatientByStaff = useCallback(
-    async (appointmentId, description, status) => {
-      return callApi(`/patientDetail/${appointmentId}/update`, {
-        method: "PUT",
-        body: JSON.stringify({ description, status }),
-      });
-    },
-    [callApi]
-  );
 
-  const cancelAppointmentByUser = useCallback(
-    async (appointmentId) => {
-      return callApi(`/appointment/${appointmentId}/cancelByMember`, {
-        method: "PUT",
-      });
-    },
-    [callApi]
-  );
+  const historyPatientByUser = useCallback(async (appointmentId) => {
+    return callApi(`/patientDetail/${appointmentId}`)
+  }, [callApi])
+  const updatePatientByStaff = useCallback(async (appointmentId, description, status) => {
+    return callApi(`/patientDetail/${appointmentId}/update`, {
+      method: 'PUT',
+      body: JSON.stringify({ description, status })
+    })
+  }, [callApi])
+
+  const cancelAppointmentByUser = useCallback(async (appointmentId) => {
+    return callApi(`/appointment/${appointmentId}/cancelByMember`, {
+      method: 'PUT'
+    })
+  }, [callApi])
 
   const getEmergencyRequestList = useCallback(async () => {
     return callApi("/getEmergencyRequestList");
   }, [callApi]);
 
-  const getProfileER = useCallback(
-    async (userId) => {
-      return callApi(`/getProfileER/${userId}`);
-    },
-    [callApi]
-  );
+  const getProfileER = useCallback(async (userId) => {
+    return callApi(`/getProfileER/${userId}`);
+  }, [callApi]);
 
-  const getPotentialDonorPlus = useCallback(
-    async (emergencyId) => {
-      return callApi(`/getPotentialDonorPlus/${emergencyId}`);
-    },
-    [callApi]
-  );
+  const getPotentialDonorPlus = useCallback(async (emergencyId) => {
+    return callApi(`/getPotentialDonorPlus/${emergencyId}`);
+  }, [callApi]);
 
-  const sendEmergencyEmail = useCallback(
-    async (donorEmail, donorName) => {
-      return callApi(`/sendEmergencyEmail/${donorEmail}/${donorName}`, {
-        method: "POST",
-      });
-    },
-    [callApi]
-  );
+  const sendEmergencyEmail = useCallback(async (donorEmail, donorName) => {
+    return callApi(`/sendEmergencyEmail/${donorEmail}/${donorName}`, {
+      method: "POST"
+    });
+  }, [callApi]);
 
-  // BLOG APIs (public - no auth required)
+  // BLOG APIs
   const fetchBlogs = useCallback(async () => {
-    const res = await callPublicApi("/blogs");
-    return Array.isArray(res.data)
-      ? res.data
-      : res.data.blogs || res.data.data || [];
-  }, [callPublicApi]);
+    const res = await callApi('/blogs');
+    return Array.isArray(res.data) ? res.data : (res.data.blogs || res.data.data || []);
+  }, [callApi]);
 
-  const createBlog = useCallback(
-    async (blog) => {
-      return callApi("/blogs/create", {
-        method: "POST",
-        body: JSON.stringify(blog),
-      });
-    },
-    [callApi]
-  );
+  const createBlog = useCallback(async (blog) => {
+    return callApi('/blogs/create', {
+      method: 'POST',
+      body: JSON.stringify(blog),
+    });
+  }, [callApi]);
 
-  const updateBlog = useCallback(
-    async (id, blog) => {
-      return callApi(`/blogs/${id}`, {
-        method: "PUT",
-        body: JSON.stringify(blog),
-      });
-    },
-    [callApi]
-  );
 
-  const addDonorToEmergency = useCallback(
-    async (emergencyId, potentialId) => {
-      return callApi(`/updateEmergencyRequest/${emergencyId}/${potentialId}`, {
-        method: "PUT",
-      });
-    },
-    [callApi]
-  );
+  const updateBlog = useCallback(async (id, blog) => {
+    return callApi(`/blogs/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(blog),
+    });
+  }, [callApi]);
 
-  const deleteBlog = useCallback(
-    async (id) => {
-      return callApi(`/blogs/${id}`, { method: "DELETE" });
-    },
-    [callApi]
-  );
+
+  const addDonorToEmergency = useCallback(async (emergencyId, potentialId) => {
+    return callApi(`/updateEmergencyRequest/${emergencyId}/${potentialId}`, {
+      method: "PUT"
+    });
+  }, [callApi]);
+
+
+  const deleteBlog = useCallback(async (id) => {
+    return callApi(`/blogs/${id}`, { method: 'DELETE' });
+  }, [callApi]);
 
   // Pagination helper for blogs
   const paginate = useCallback((items, currentPage, perPage) => {
     const totalPages = Math.ceil(items.length / perPage);
-    const paged = items.slice(
-      (currentPage - 1) * perPage,
-      currentPage * perPage
-    );
+    const paged = items.slice((currentPage - 1) * perPage, currentPage * perPage);
     return { paged, totalPages };
   }, []);
 
-  const handleEmergencyRequest = useCallback(
-    async (emergencyId, payload) => {
-      return callApi(`/handleEmergencyRequest/${emergencyId}`, {
-        method: "POST",
-        body: JSON.stringify(payload),
-      });
-    },
-    [callApi]
-  );
+  const handleEmergencyRequest = useCallback(async (emergencyId, payload) => {
+    return callApi(`/handleEmergencyRequest/${emergencyId}`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  }, [callApi]);
 
-  const rejectEmergencyRequest = useCallback(
-    async (emergencyId, reason_Reject) => {
-      return callApi(`/rejectEmergency/${emergencyId}/reject`, {
-        method: "PUT",
-        body: JSON.stringify({ reason_Reject }),
-      });
-    },
-    [callApi]
-  );
+  const rejectEmergencyRequest = useCallback(async (emergencyId, reason_Reject) => {
+    return callApi(`/rejectEmergency/${emergencyId}/reject`, {
+      method: "PUT",
+      body: JSON.stringify({ reason_Reject }),
+    });
+  }, [callApi]);
 
   const getInfoEmergencyRequestsByMember = useCallback(async () => {
     return callApi(`/getInfoEmergencyRequestsByMember`);
   }, [callApi]);
 
-  const cancelEmergencyRequestByMember = useCallback(
-    async (emergencyId) => {
-      return callApi(`/cancelEmergencyByMember/${emergencyId}/cancel`, {
-        method: "PUT",
-      });
-    },
-    [callApi]
-  );
+  const cancelEmergencyRequestByMember = useCallback(async (emergencyId) => {
+    return callApi(`/cancelEmergencyByMember/${emergencyId}/cancel`, {
+      method: "PUT"
+    });
+  }, [callApi]);
   const getAllUsers = useCallback(async () => {
     return callApi("/getAllUsers");
   }, [callApi]);
 
-  const banUser = useCallback(
-    async (userId) => {
-      return callApi(`/bannedUser/${userId}`, {
-        method: "PUT",
-      });
-    },
-    [callApi]
-  );
+  const banUser = useCallback(async (userId) => {
+    return callApi(`/bannedUser/${userId}`, {
+      method: "PUT"
+    });
+  }, [callApi]);
 
-  const unbanUser = useCallback(
-    async (userId) => {
-      return callApi(`/unbanUser/${userId}`, {
-        method: "PUT",
-      });
-    },
-    [callApi]
-  );
+  const unbanUser = useCallback(async (userId) => {
+    return callApi(`/unbanUser/${userId}`, {
+      method: "PUT"
+    });
+  }, [callApi]);
 
-  const createStaffAccount = useCallback(
-    async (staffData) => {
-      return callApi("/signup/staff", {
-        method: "POST",
-        body: JSON.stringify(staffData),
-      });
-    },
-    [callApi]
-  );
+  const createStaffAccount = useCallback(async (staffData) => {
+    return callApi("/signup/staff", {
+      method: "POST",
+      body: JSON.stringify(staffData),
+    });
+  }, [callApi]);
 
   // Hàm lấy bệnh án cũ nhất của user
-  const getLatestPatientDetail = useCallback(
-    async (userId) => {
-      return callApi(`/patientDetail/latest/${userId}`, {});
-    },
-    [callApi]
-  );
+  const getLatestPatientDetail = useCallback(async (userId) => {
+
+    return callApi(`/patientDetail/latest/${userId}`, {
+    })
+  }, [callApi]);
 
   const getBloodBank = useCallback(async () => {
     return callApi(`/getBloodBank`);
   }, [callApi]);
 
   const getAllPatientHistoryByMember = useCallback(async () => {
-    return callApi("/patientDetail/all");
+    return callApi('/patientDetail/all');
   }, [callApi]);
 
-  const createReport = useCallback(
-    async (reportData) => {
-      return callApi("/createReport", {
-        method: "POST",
-        body: JSON.stringify(reportData),
-        headers: { "Content-Type": "application/json" },
-      });
-    },
-    [callApi]
-  );
+  const createReport = useCallback(async (reportData) => {
+    return callApi("/createReport", {
+      method: "POST",
+      body: JSON.stringify(reportData),
+      headers: { "Content-Type": "application/json" },
+    });
+  }, [callApi]);
 
   const getLatestReport = useCallback(async () => {
     return callApi("/getLatestReport");
   }, [callApi]);
 
-  const updateReport = useCallback(
-    async (summaryBlood_Id, Report_Detail_ID, reportData) => {
-      return callApi(`/updateReport/${summaryBlood_Id}/${Report_Detail_ID}`, {
-        method: "PUT",
-        body: JSON.stringify(reportData),
-        headers: { "Content-Type": "application/json" },
-      });
-    },
-    [callApi]
-  );
-
-  const EMAIL_BASE_URL = import.meta.env.VITE_API_URL || "";
+  const updateReport = useCallback(async (summaryBlood_Id, Report_Detail_ID, reportData) => {
+    return callApi(`/updateReport/${summaryBlood_Id}/${Report_Detail_ID}`, {
+      method: "PUT",
+      body: JSON.stringify(reportData),
+      headers: { "Content-Type": "application/json" },
+    });
+  }, [callApi]);
 
   const fetchEmailApi = useCallback(
     async (endpoint, options = {}) => {
-      const url = `${EMAIL_BASE_URL}${endpoint}`;
+      const url = `${endpoint}`; // Không có BASE_URL
       setLoading(true);
       setError(null);
       try {
         const response = await fetch(url, {
           headers: {
-            "Content-Type": "application/json",
-            ...(options.headers || {}),
+            'Content-Type': 'application/json',
+            ...(options.headers || {})
           },
-          ...options,
+          ...options
         });
         const data = await response.json();
         if (!response.ok) throw new Error(data.message || "Gửi mail thất bại");
@@ -554,50 +400,41 @@ const useApi = () => {
         setLoading(false);
       }
     },
-    [EMAIL_BASE_URL]
+    []
   );
 
-  const sendRecoveryReminderEmail = useCallback(
-    async (donorEmail, donorName) => {
-      return fetchEmailApi(
-        `/email/sendRecoveryReminderEmail/${donorEmail}/${donorName}`,
-        { method: "POST" }
-      );
-    },
-    [fetchEmailApi]
-  );
+  const sendRecoveryReminderEmail = useCallback(async (donorEmail, donorName) => {
+    return fetchEmailApi(
+      `/email/sendRecoveryReminderEmail/${donorEmail}/${donorName}`,
+      { method: "POST" }
+    );
+  }, [fetchEmailApi]);
 
   const getAllBloodUnit = useCallback(async () => {
     return callApi("/getAllBloodUnit");
   }, [callApi]);
 
-  const createBloodUnit = useCallback(
-    async (BloodType_ID, Volume, Expiration_Date) => {
-      return callApi("/createBloodUnit", {
-        method: "POST",
-        body: JSON.stringify({ BloodType_ID, Volume, Expiration_Date }),
-        headers: { "Content-Type": "application/json" },
-      });
-    },
-    [callApi]
-  );
+  const createBloodUnit = useCallback(async (BloodType_ID, Volume, Expiration_Date) => {
+    return callApi("/createBloodUnit", {
+      method: "POST",
+      body: JSON.stringify({ BloodType_ID, Volume, Expiration_Date }),
+      headers: { "Content-Type": "application/json" }
+    });
+  }, [callApi]);
 
-  const updateBloodUnit = useCallback(
-    async (BloodUnit_ID, Status, Expiration_Date) => {
-      return callApi(`/updateBloodUnit/${BloodUnit_ID}`, {
-        method: "PUT",
-        body: JSON.stringify({ Status, Expiration_Date }),
-        headers: { "Content-Type": "application/json" },
-      });
-    },
-    [callApi]
-  );
+  const updateBloodUnit = useCallback(async (BloodUnit_ID, Status, Expiration_Date) => {
+    return callApi(`/updateBloodUnit/${BloodUnit_ID}`, {
+      method: "PUT",
+      body: JSON.stringify({ Status, Expiration_Date }),
+      headers: { "Content-Type": "application/json" }
+    });
+  }, [callApi]);
 
   const addPotential = async (userId, note = "") => {
     return callApi(`/potential/${userId}`, {
       method: "POST",
       body: JSON.stringify({ Note: note }),
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json" }
     });
   };
 
@@ -605,47 +442,38 @@ const useApi = () => {
     return callApi("/potential");
   }, [callApi]);
 
-  const updatePotentialStatus = useCallback(
-    async (potentialId, Status) => {
-      return callApi(`/potential/${potentialId}/status`, {
-        method: "PUT",
-        body: JSON.stringify({ Status }),
-        headers: { "Content-Type": "application/json" },
-      });
-    },
-    [callApi]
-  );
-
-  //Hàm quên mật khẩu (Cognito)
-  const forgotPassword = useCallback(
-    async (email) => {
-      return callAuthApi("/forgot-password", {
-        method: "POST",
-        body: JSON.stringify({ email }),
-      });
-    },
-    [callAuthApi]
-  );
-
-  const resetPassword = useCallback(
-    async ({ email, code, newPassword }) => {
-      return callAuthApi("/reset-password", {
-        method: "POST",
-        body: JSON.stringify({ email, code, newPassword }),
-      });
-    },
-    [callAuthApi]
-  );
-
-  const getStaffReports = useCallback(async () => {
-    return callApi("/getAllReports");
+  const updatePotentialStatus = useCallback(async (potentialId, Status) => {
+    return callApi(`/potential/${potentialId}/status`, {
+      method: "PUT",
+      body: JSON.stringify({ Status }),
+      headers: { "Content-Type": "application/json" }
+    });
   }, [callApi]);
+
+  //Hàm quên mật khẩu
+  const forgotPassword = useCallback(async (email) => {
+  return callApi("/auth/forgot-password", {
+    method: "POST",
+    body: JSON.stringify({ email }),
+    headers: { "Content-Type": "application/json" }
+  });
+}, [callApi]);
+const resetPassword = useCallback(async ({ otp, newPassword, confirmPassword }) => {
+  return callApi("/auth/reset-password", {
+    method: "POST",
+    body: JSON.stringify({ otp, newPassword, confirmPassword }),
+    headers: { "Content-Type": "application/json" }
+  });
+}, [callApi]);
+
+const getStaffReports = useCallback(async () => {
+  return callApi("/getAllReports");
+}, [callApi]);
 
   return {
     loading,
     error,
     callApi,
-    callPublicApi,
     login,
     register,
     logout,
@@ -701,9 +529,7 @@ const useApi = () => {
     updatePotentialStatus,
     forgotPassword,
     resetPassword,
-    getStaffReports,
-    confirmEmail,
-    callAuthApi,
+    getStaffReports
   };
 };
 

@@ -4,10 +4,10 @@ import { useEffect, useState } from "react";
 import useApi from "../../hooks/useApi";
 import Swal from "sweetalert2";
 
-const ProtectedRoute = ({
-  allowedRoles = null,
-  requireAuth = false,
-  restricted = false,
+const ProtectedRoute = ({ 
+  allowedRoles = null, 
+  requireAuth = false, 
+  restricted = false 
 }) => {
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -25,18 +25,18 @@ const ProtectedRoute = ({
         await logout();
       }
       localStorage.removeItem("isLoggedIn");
-
+      
       // Hiển thị toast trước
       toast.error(message, {
         position: "top-center",
-        autoClose: 3000,
+        autoClose: 3000
       });
-
+      
       // Delay một chút để toast có thể hiển thị
       setTimeout(() => {
         navigate("/login", { replace: true });
       }, 100);
-    } catch {
+    } catch (error) {
       localStorage.removeItem("isLoggedIn");
       navigate("/login", { replace: true });
     }
@@ -45,20 +45,20 @@ const ProtectedRoute = ({
   // Hàm hiển thị popup đăng nhập
   const showLoginPopup = async () => {
     const result = await Swal.fire({
-      title: "Lưu ý",
-      text: "Vui lòng đăng nhập để sử dụng chức năng này.",
-      icon: "warning",
+      title: 'Lưu ý',
+      text: 'Vui lòng đăng nhập để sử dụng chức năng này.',
+      icon: 'warning',
       showCancelButton: true,
-      confirmButtonColor: "#3085d6",
-      cancelButtonColor: "#d33",
-      confirmButtonText: "Xác nhận",
-      cancelButtonText: "Hủy",
+      confirmButtonColor: '#3085d6',
+      cancelButtonColor: '#d33',
+      confirmButtonText: 'Xác nhận',
+      cancelButtonText: 'Hủy'
     });
-
+    
     if (result.isConfirmed) {
       navigate("/login", { state: { from: location }, replace: true });
-    } else if (!result.isConfirmed) {
-      navigate("/");
+    }else if (!result.isConfirmed){
+      navigate("/")
     }
   };
 
@@ -77,25 +77,13 @@ const ProtectedRoute = ({
         // Route công khai có restricted (login/register)
         if (!requireAuth && restricted) {
           if (isLoggedIn) {
-            // Đọc user từ localStorage trước (đã được lưu khi login)
-            const storedUser = localStorage.getItem("user");
-            if (storedUser) {
-              try {
-                const userData = JSON.parse(storedUser);
-                setUser(userData);
-                setIsAuthorized(false); // Sẽ chuyển hướng phía dưới
-              } catch {
-                setIsAuthorized(true);
-              }
-            } else {
-              // Fallback: gọi API nếu không có trong localStorage
-              try {
-                const res = await getCurrentUser();
-                setUser(res.data);
-                setIsAuthorized(false);
-              } catch {
-                setIsAuthorized(true);
-              }
+            // Lấy user qua API để chuyển hướng đúng role
+            try {
+              const res = await getCurrentUser();
+              setUser(res.data);
+              setIsAuthorized(false); // Sẽ chuyển hướng phía dưới
+            } catch {
+              setIsAuthorized(true);
             }
           } else {
             setIsAuthorized(true);
@@ -113,74 +101,34 @@ const ProtectedRoute = ({
           return;
         }
 
-        // Lấy user info - ưu tiên từ localStorage trước
+        // Lấy user info từ API
         let userInfo = null;
-        const storedUser = localStorage.getItem("user");
-
-        if (storedUser) {
-          try {
-            userInfo = JSON.parse(storedUser);
-            setUser(userInfo);
-          } catch {
-            // Invalid JSON, try API
-          }
+        try {
+          const res = await getCurrentUser();
+          userInfo = res.data;
+          setUser(userInfo);
+        } catch (error) {
+          await handleLogoutAndRedirect("Phiên đăng nhập đã hết hạn");
+          setIsAuthorized(false);
+          setIsLoading(false);
+          return;
         }
-
-        // Nếu không có trong localStorage, gọi API
-        if (!userInfo) {
-          try {
-            const res = await getCurrentUser();
-            userInfo = res.data;
-            setUser(userInfo);
-            // Lưu vào localStorage để dùng sau
-            localStorage.setItem("user", JSON.stringify(userInfo));
-          } catch (error) {
-            console.error("getCurrentUser error:", error);
-            await handleLogoutAndRedirect("Phiên đăng nhập đã hết hạn");
-            setIsAuthorized(false);
-            setIsLoading(false);
-            return;
-          }
-        }
-
-        // Debug: log user info để kiểm tra
-        console.log("=== DEBUG RequireRole ===");
-        console.log("userInfo:", userInfo);
-        console.log("user_role:", userInfo?.user_role);
-        console.log("User_Role:", userInfo?.User_Role);
-        console.log("allowedRoles:", allowedRoles);
 
         // Kiểm tra role nếu cần
-        if (allowedRoles && userInfo) {
-          // Hỗ trợ cả user_role và User_Role (backend có thể trả về khác nhau)
-          const userRole = (userInfo.user_role || userInfo.User_Role || "")
-            .trim()
-            .toLowerCase();
-          const normalizedAllowedRoles = allowedRoles.map((r) =>
-            r.toLowerCase()
-          );
+        if (allowedRoles) {
+          const userRole = (userInfo.user_role || "").trim().toLowerCase();
+          const normalizedAllowedRoles = allowedRoles.map(r => r.toLowerCase());
           if (normalizedAllowedRoles.includes(userRole)) {
             setIsAuthorized(true);
           } else {
-            toast.error("Bạn không có quyền truy cập trang này.", {
-              position: "top-center",
-              autoClose: 3000,
-            });
-            // Redirect về trang phù hợp với role thay vì logout
-            if (userRole === "admin") {
-              navigate("/admin", { replace: true });
-            } else if (userRole === "staff") {
-              navigate("/dashboard", { replace: true });
-            } else {
-              navigate("/", { replace: true });
-            }
+            await handleLogoutAndRedirect("Bạn không có quyền truy cập trang này.\nVui lòng đăng nhập bằng tài khoản có quyền phù hợp.");
             setIsAuthorized(false);
           }
         } else {
           setIsAuthorized(true);
         }
         setIsLoading(false);
-      } catch {
+      } catch (error) {
         await handleLogoutAndRedirect("Đã xảy ra lỗi xác thực");
         setIsAuthorized(false);
         setIsLoading(false);
@@ -197,7 +145,7 @@ const ProtectedRoute = ({
       showLoginPopup();
       setShowLoginPrompt(false);
     }
-  }, [showLoginPopup, showLoginPrompt]);
+  }, [showLoginPrompt]);
 
   if (isLoading) {
     return (
@@ -211,18 +159,14 @@ const ProtectedRoute = ({
   if (!isAuthorized) {
     // Trang login/register khi user đã đăng nhập
     if (restricted && user) {
-      // Hỗ trợ cả user_role và User_Role
-      const userRole = (user.user_role || user.User_Role || "")
-        .trim()
-        .toLowerCase();
-      console.log("Redirecting logged-in user, role:", userRole);
-
-      if (userRole === "admin") {
-        return <Navigate to="/admin" replace />;
-      } else if (userRole === "staff") {
-        return <Navigate to="/dashboard" replace />;
-      } else {
-        return <Navigate to="/" replace />;
+      const userRole = user.user_role;
+      switch (userRole) {
+        case "admin":
+          return <Navigate to="/admin" replace />;
+        case "staff":
+          return <Navigate to="/dashboard" replace />;
+        default:
+          return <Navigate to="/" replace />;
       }
     }
     // Các trường hợp khác đã được handleLogoutAndRedirect xử lý
