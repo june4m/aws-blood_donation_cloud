@@ -80,6 +80,10 @@ const ProtectedRoute = ({
             // Lấy user qua API để chuyển hướng đúng role
             try {
               const res = await getCurrentUser();
+              
+              if(!res.data){
+                alert("NO uỎe data")
+              }
               setUser(res.data);
               setIsAuthorized(false); // Sẽ chuyển hướng phía dưới
             } catch {

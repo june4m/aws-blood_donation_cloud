@@ -45,6 +45,7 @@ const useApi = () => {
         // Xử lý 401 - Authentication error
         if (response.status === 401) {
           if (window.location.pathname !== "/login") {
+            console.log("HRE")
             clearAuthData();
             setTimeout(() => {
               window.location.href = "/login";
