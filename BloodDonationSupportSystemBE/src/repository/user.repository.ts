@@ -25,7 +25,7 @@ export class UserRepository {
       WHERE LOWER(Email) = LOWER(?)
       `,
       [email]
-    ) 
+    )
     return rows
   }
 
