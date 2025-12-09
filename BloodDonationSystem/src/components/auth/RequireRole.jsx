@@ -12,7 +12,11 @@ import useApi from "../../hooks/useApi";
  * - Throws and handles 401 at caller level (getCurrentUser should surface 401 via thrown error)
  */
 
-const ProtectedRoute = ({ allowedRoles = null, requireAuth = false, restricted = false }) => {
+const ProtectedRoute = ({
+  allowedRoles = null,
+  requireAuth = false,
+  restricted = false,
+}) => {
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState(null);
@@ -24,7 +28,10 @@ const ProtectedRoute = ({ allowedRoles = null, requireAuth = false, restricted =
 
   // Clear client-side auth data and log stack for debugging
   const clearClientAuth = useCallback(() => {
-    console.warn("clearClientAuth called. Clearing localStorage. Stack:\n", new Error().stack);
+    console.warn(
+      "clearClientAuth called. Clearing localStorage. Stack:\n",
+      new Error().stack
+    );
     try {
       localStorage.removeItem("isLoggedIn");
       localStorage.removeItem("accessToken");
@@ -35,27 +42,32 @@ const ProtectedRoute = ({ allowedRoles = null, requireAuth = false, restricted =
   }, []);
 
   // Centralized logout + redirect handler
-  const handleLogoutAndRedirect = useCallback(async (message) => {
-    // Clear client immediately
-    clearClientAuth();
+  const handleLogoutAndRedirect = useCallback(
+    async (message) => {
+      // Clear client immediately
+      clearClientAuth();
 
-    // Show user-friendly message
-    if (message) {
-      toast.error(message, { position: "top-center", autoClose: 3000 });
-    }
+      // Show user-friendly message
+      if (message) {
+        toast.error(message, { position: "top-center", autoClose: 3000 });
+      }
 
-    // Try to notify server but don't block UX (fire-and-forget)
-    try {
-      // Don't await to avoid race or further 401 triggering
-      logout?.().catch((err) => console.debug("Server logout failed (ignored):", err));
-    } catch (err) {
-      // ignore
-      console.debug("logout invocation failed:", err);
-    }
+      // Try to notify server but don't block UX (fire-and-forget)
+      try {
+        // Don't await to avoid race or further 401 triggering
+        logout?.().catch((err) =>
+          console.debug("Server logout failed (ignored):", err)
+        );
+      } catch (err) {
+        // ignore
+        console.debug("logout invocation failed:", err);
+      }
 
-    // Use react-router navigation (no reload)
-    navigate("/login", { replace: true });
-  }, [clearClientAuth, logout, navigate]);
+      // Use react-router navigation (no reload)
+      navigate("/login", { replace: true });
+    },
+    [clearClientAuth, logout, navigate]
+  );
 
   // Small reusable popup for routes that require login
   const showLoginPopup = useCallback(async () => {
@@ -104,7 +116,9 @@ const ProtectedRoute = ({ allowedRoles = null, requireAuth = false, restricted =
 
         // Inconsistent state: marked logged in but token missing -> force logout
         if (isLoggedIn && !token) {
-          await handleLogoutAndRedirect("Phiên đăng nhập không hợp lệ. Vui lòng đăng nhập lại.");
+          await handleLogoutAndRedirect(
+            "Phiên đăng nhập không hợp lệ. Vui lòng đăng nhập lại."
+          );
           setIsAuthorized(false);
           setIsLoading(false);
           return;
@@ -147,8 +161,13 @@ const ProtectedRoute = ({ allowedRoles = null, requireAuth = false, restricted =
 
         // If allowedRoles is provided, validate
         if (allowedRoles && Array.isArray(allowedRoles)) {
-          const userRole = (userInfo?.user_role || "").toString().trim().toLowerCase();
-          const normalizedAllowed = allowedRoles.map((r) => r.toString().toLowerCase());
+          const userRole = (userInfo?.user_role || "")
+            .toString()
+            .trim()
+            .toLowerCase();
+          const normalizedAllowed = allowedRoles.map((r) =>
+            r.toString().toLowerCase()
+          );
           if (normalizedAllowed.includes(userRole)) {
             setIsAuthorized(true);
           } else {
@@ -176,7 +195,7 @@ const ProtectedRoute = ({ allowedRoles = null, requireAuth = false, restricted =
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allowedRoles, requireAuth, restricted, getCurrentUser, handleLogoutAndRedirect]);
+  }, [allowedRoles, requireAuth, restricted, location.pathname]);
 
   useEffect(() => {
     if (showLoginPrompt) {

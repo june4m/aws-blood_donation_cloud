@@ -4,8 +4,14 @@ import { toast } from "react-toastify";
 import { AiOutlineEye, AiOutlineEyeInvisible } from "react-icons/ai";
 
 const bloodTypeMapping = {
-  "A+": "BT001", "A-": "BT002", "B+": "BT003", "B-": "BT004",
-  "AB+": "BT005", "AB-": "BT006", "O+": "BT007", "O-": "BT008"
+  "A+": "BT001",
+  "A-": "BT002",
+  "B+": "BT003",
+  "B-": "BT004",
+  "AB+": "BT005",
+  "AB-": "BT006",
+  "O+": "BT007",
+  "O-": "BT008",
 };
 const bloodTypes = Object.keys(bloodTypeMapping);
 
@@ -61,7 +67,7 @@ const RoleManagement = () => {
     setLoading(true);
     const res = await getAllUsers();
     const staffList = (res.data || res).filter(
-      u => u.User_Role === "staff" || u.User_Role === "member"
+      (u) => u.User_Role === "staff" || u.User_Role === "member"
     );
     setStaffs(staffList);
     setLoading(false);
@@ -69,6 +75,7 @@ const RoleManagement = () => {
 
   useEffect(() => {
     fetchStaffs();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleBan = (userId) => {
@@ -111,7 +118,8 @@ const RoleManagement = () => {
   };
   const ageLimit = calculateAgeLimit();
 
-  const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+  const passwordRegex =
+    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
   const validateAge = (dateOfBirth) => {
     if (!dateOfBirth) return "";
     const today = new Date();
@@ -172,7 +180,7 @@ const RoleManagement = () => {
         confirm_password: form.confirm_password,
         name: form.name,
         date_of_birth: form.date_of_birth,
-        bloodType_id: bloodTypeMapping[form.bloodType]
+        bloodType_id: bloodTypeMapping[form.bloodType],
       });
       toast.success("Tạo tài khoản staff thành công!");
       setShowCreateModal(false);
@@ -218,7 +226,7 @@ const RoleManagement = () => {
       const res = await getApprovedPotentialList();
       setPotentialList(res.data || []);
       // Lưu mảng User_ID của người tiềm năng đã approved
-      setPotentialUserIds((res.data || []).map(item => item.User_ID));
+      setPotentialUserIds((res.data || []).map((item) => item.User_ID));
       setShowPotentialPopup(true);
     } catch (err) {
       toast.error("Không lấy được danh sách người tiềm năng!");
@@ -238,7 +246,9 @@ const RoleManagement = () => {
 
   return (
     <div className="bg-gray-100 min-h-screen p-6">
-      <h2 className="text-2xl font-extrabold text-[#D32F2F] mb-6 text-center">Quản lý tài khoản</h2>
+      <h2 className="text-2xl font-extrabold text-[#D32F2F] mb-6 text-center">
+        Quản lý tài khoản
+      </h2>
       <div className="flex justify-between items-center mb-4 max-w-6xl mx-auto">
         <button
           className="px-6 py-2.5 bg-[#D32F2F] text-white rounded-lg font-semibold shadow-md hover:bg-red-700 transition-all duration-200 flex items-center gap-2"
@@ -258,11 +268,21 @@ const RoleManagement = () => {
           <table className="min-w-full border-separate border-spacing-y-1">
             <thead>
               <tr className="bg-red-50">
-                <th className="py-3 px-4 text-left font-semibold text-[#D32F2F] rounded-tl-xl">Tên</th>
-                <th className="py-3 px-4 text-left font-semibold text-[#D32F2F]">Email</th>
-                <th className="py-3 px-4 text-center font-semibold text-[#D32F2F]">Vai trò</th>
-                <th className="py-3 px-4 text-center font-semibold text-[#D32F2F] min-w-[120px]">Trạng thái</th>
-                <th className="py-3 px-4 text-center font-semibold text-[#D32F2F] rounded-tr-xl">Hành động</th>
+                <th className="py-3 px-4 text-left font-semibold text-[#D32F2F] rounded-tl-xl">
+                  Tên
+                </th>
+                <th className="py-3 px-4 text-left font-semibold text-[#D32F2F]">
+                  Email
+                </th>
+                <th className="py-3 px-4 text-center font-semibold text-[#D32F2F]">
+                  Vai trò
+                </th>
+                <th className="py-3 px-4 text-center font-semibold text-[#D32F2F] min-w-[120px]">
+                  Trạng thái
+                </th>
+                <th className="py-3 px-4 text-center font-semibold text-[#D32F2F] rounded-tr-xl">
+                  Hành động
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -277,13 +297,17 @@ const RoleManagement = () => {
                 </tr>
               ) : staffs.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="text-center py-8 text-gray-500">Không có staff nào.</td>
+                  <td colSpan={5} className="text-center py-8 text-gray-500">
+                    Không có staff nào.
+                  </td>
                 </tr>
               ) : (
                 staffs.map((user, idx) => (
                   <tr
                     key={user.User_ID}
-                    className={`transition-all duration-200 ${idx % 2 === 0 ? 'bg-gray-50' : 'bg-white'} hover:bg-red-50`}
+                    className={`transition-all duration-200 ${
+                      idx % 2 === 0 ? "bg-gray-50" : "bg-white"
+                    } hover:bg-red-50`}
                   >
                     <td className="py-3 px-4 font-medium">
                       <div className="flex items-center gap-2">
@@ -304,11 +328,15 @@ const RoleManagement = () => {
                       </div>
                     </td>
                     <td className="py-3 px-4">{user.Email}</td>
-                    <td className="py-3 px-4 text-center">{user.User_Role === "staff" ? "Nhân viên" : "Thành viên"}</td>
+                    <td className="py-3 px-4 text-center">
+                      {user.User_Role === "staff" ? "Nhân viên" : "Thành viên"}
+                    </td>
                     <td className="py-3 px-4 text-center align-middle">
-                      {user.isDelete === "1" || user.isDelete === true ? (
+                      {user.isDelete === "1" ||
+                      user.isDelete === 1 ||
+                      user.isDelete === true ? (
                         <span className="inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-medium bg-green-50 text-green-700 border border-green-200 w-28">
-                          Đang mở khóa
+                          Hoạt động
                         </span>
                       ) : (
                         <span className="inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-medium bg-red-50 text-red-700 border border-red-200 w-28">
@@ -318,7 +346,9 @@ const RoleManagement = () => {
                     </td>
                     <td className="py-3 px-4 text-center">
                       <div className="flex flex-row gap-2 justify-center items-center">
-                        {user.isDelete === "1" || user.isDelete === true ? (
+                        {user.isDelete === "1" ||
+                        user.isDelete === 1 ||
+                        user.isDelete === true ? (
                           <button
                             onClick={() => handleBan(user.User_ID)}
                             className="px-4 py-1 bg-red-500 text-white text-xs rounded-full font-semibold hover:bg-red-600 transition-all duration-200 shadow-sm"
@@ -328,7 +358,7 @@ const RoleManagement = () => {
                         ) : (
                           <button
                             onClick={() => handleUnban(user.User_ID)}
-                            className="px-4 py-1 bg-[#D32F2F] text-white text-xs rounded-full font-semibold hover:bg-red-700 transition-all duration-200 shadow-sm"
+                            className="px-4 py-1 bg-green-600 text-white text-xs rounded-full font-semibold hover:bg-green-700 transition-all duration-200 shadow-sm"
                           >
                             Mở khóa
                           </button>
@@ -336,9 +366,11 @@ const RoleManagement = () => {
                         {user.User_Role === "member" && (
                           <button
                             className={`px-4 py-1 text-xs rounded-full font-semibold transition-all duration-200
-                              ${potentialUserIds.includes(user.User_ID)
-                                ? "bg-gray-300 text-gray-400 cursor-not-allowed opacity-60"
-                                : "bg-blue-500 text-white hover:bg-blue-700"}
+                              ${
+                                potentialUserIds.includes(user.User_ID)
+                                  ? "bg-gray-300 text-gray-400 cursor-not-allowed opacity-60"
+                                  : "bg-blue-500 text-white hover:bg-blue-700"
+                              }
                             `}
                             onClick={() => handleAddPotential(user.User_ID)}
                             disabled={potentialUserIds.includes(user.User_ID)}
@@ -361,28 +393,54 @@ const RoleManagement = () => {
       {selectedUser && (
         <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl shadow-2xl p-8 w-[350px] max-w-full relative border-2 border-blue-300">
-            <h3 className="text-lg font-bold text-blue-700 mb-4">Thông tin người dùng</h3>
+            <h3 className="text-lg font-bold text-blue-700 mb-4">
+              Thông tin người dùng
+            </h3>
             <div className="space-y-2 text-gray-700">
-              <div><b>Tên:</b> {selectedUser.User_Name}</div>
-              <div><b>Email:</b> {selectedUser.Email}</div>
-              <div><b>Số điện thoại:</b> {selectedUser.Phone || "—"}</div>
               <div>
-                <b>Giới tính:</b> {selectedUser.Gender === "M" ? "Nam" : selectedUser.Gender === "F" ? "Nữ" : "—"}
+                <b>Tên:</b> {selectedUser.User_Name}
               </div>
               <div>
-                <b>Năm sinh:</b> {selectedUser.YOB
+                <b>Email:</b> {selectedUser.Email}
+              </div>
+              <div>
+                <b>Số điện thoại:</b> {selectedUser.Phone || "—"}
+              </div>
+              <div>
+                <b>Giới tính:</b>{" "}
+                {selectedUser.Gender === "M"
+                  ? "Nam"
+                  : selectedUser.Gender === "F"
+                  ? "Nữ"
+                  : "—"}
+              </div>
+              <div>
+                <b>Năm sinh:</b>{" "}
+                {selectedUser.YOB
                   ? (() => {
                       const date = new Date(selectedUser.YOB);
                       const day = String(date.getDate()).padStart(2, "0");
-                      const month = String(date.getMonth() + 1).padStart(2, "0");
+                      const month = String(date.getMonth() + 1).padStart(
+                        2,
+                        "0"
+                      );
                       const year = date.getFullYear();
                       return `${day}/${month}/${year}`;
                     })()
                   : "—"}
               </div>
-              <div><b>Vai trò:</b> {selectedUser.User_Role === "staff" ? "Nhân viên" : "Thành viên"}</div>
-              <div><b>Loại máu:</b> {selectedUser.BloodGroup || "—"}</div>
-               <div><b>Số lần hiến máu:</b> {selectedUser.Donation_Count ?? "—"}</div>
+              <div>
+                <b>Vai trò:</b>{" "}
+                {selectedUser.User_Role === "staff"
+                  ? "Nhân viên"
+                  : "Thành viên"}
+              </div>
+              <div>
+                <b>Loại máu:</b> {selectedUser.BloodGroup || "—"}
+              </div>
+              <div>
+                <b>Số lần hiến máu:</b> {selectedUser.Donation_Count ?? "—"}
+              </div>
             </div>
             <div className="flex justify-end mt-6">
               <button
@@ -400,7 +458,9 @@ const RoleManagement = () => {
       {showCreateModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full mx-4 relative border-t-4 border-[#D32F2F]">
-            <h3 className="text-xl font-bold text-[#D32F2F] mb-6 text-center">Tạo tài khoản staff</h3>
+            <h3 className="text-xl font-bold text-[#D32F2F] mb-6 text-center">
+              Tạo tài khoản staff
+            </h3>
             <form className="space-y-4" onSubmit={handleCreateStaff}>
               <div>
                 <label className="block font-medium mb-1">Email:</label>
@@ -409,10 +469,14 @@ const RoleManagement = () => {
                   name="email"
                   value={form.email}
                   onChange={handleChange}
-                  className={`w-full px-3 py-2 border rounded ${errors.email ? "border-red-500" : "border-gray-300"}`}
+                  className={`w-full px-3 py-2 border rounded ${
+                    errors.email ? "border-red-500" : "border-gray-300"
+                  }`}
                   required
                 />
-                {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
+                {errors.email && (
+                  <p className="text-red-500 text-xs mt-1">{errors.email}</p>
+                )}
               </div>
               <div>
                 <label className="block font-medium mb-1">Mật khẩu:</label>
@@ -422,7 +486,9 @@ const RoleManagement = () => {
                     name="password"
                     value={form.password}
                     onChange={handleChange}
-                    className={`w-full px-3 py-2 border rounded ${errors.password ? "border-red-500" : "border-gray-300"}`}
+                    className={`w-full px-3 py-2 border rounded ${
+                      errors.password ? "border-red-500" : "border-gray-300"
+                    }`}
                     required
                   />
                   <button
@@ -438,17 +504,25 @@ const RoleManagement = () => {
                     )}
                   </button>
                 </div>
-                {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password}</p>}
+                {errors.password && (
+                  <p className="text-red-500 text-xs mt-1">{errors.password}</p>
+                )}
               </div>
               <div>
-                <label className="block font-medium mb-1">Xác nhận mật khẩu:</label>
+                <label className="block font-medium mb-1">
+                  Xác nhận mật khẩu:
+                </label>
                 <div className="relative">
                   <input
                     type={showConfirmPassword ? "text" : "password"}
                     name="confirm_password"
                     value={form.confirm_password}
                     onChange={handleChange}
-                    className={`w-full px-3 py-2 border rounded ${errors.confirm_password ? "border-red-500" : "border-gray-300"}`}
+                    className={`w-full px-3 py-2 border rounded ${
+                      errors.confirm_password
+                        ? "border-red-500"
+                        : "border-gray-300"
+                    }`}
                     required
                   />
                   <button
@@ -464,7 +538,11 @@ const RoleManagement = () => {
                     )}
                   </button>
                 </div>
-                {errors.confirm_password && <p className="text-red-500 text-xs mt-1">{errors.confirm_password}</p>}
+                {errors.confirm_password && (
+                  <p className="text-red-500 text-xs mt-1">
+                    {errors.confirm_password}
+                  </p>
+                )}
               </div>
               <div>
                 <label className="block font-medium mb-1">Họ và tên:</label>
@@ -473,10 +551,14 @@ const RoleManagement = () => {
                   name="name"
                   value={form.name}
                   onChange={handleChange}
-                  className={`w-full px-3 py-2 border rounded ${errors.name ? "border-red-500" : "border-gray-300"}`}
+                  className={`w-full px-3 py-2 border rounded ${
+                    errors.name ? "border-red-500" : "border-gray-300"
+                  }`}
                   required
                 />
-                {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
+                {errors.name && (
+                  <p className="text-red-500 text-xs mt-1">{errors.name}</p>
+                )}
               </div>
               <div>
                 <label className="block font-medium mb-1">Nhóm máu:</label>
@@ -484,15 +566,23 @@ const RoleManagement = () => {
                   name="bloodType"
                   value={form.bloodType}
                   onChange={handleChange}
-                  className={`w-full px-3 py-2 border rounded ${errors.bloodType ? "border-red-500" : "border-gray-300"}`}
+                  className={`w-full px-3 py-2 border rounded ${
+                    errors.bloodType ? "border-red-500" : "border-gray-300"
+                  }`}
                   required
                 >
                   <option value="">-- Chọn nhóm máu --</option>
-                  {bloodTypes.map(type => (
-                    <option key={type} value={type}>{type}</option>
+                  {bloodTypes.map((type) => (
+                    <option key={type} value={type}>
+                      {type}
+                    </option>
                   ))}
                 </select>
-                {errors.bloodType && <p className="text-red-500 text-xs mt-1">{errors.bloodType}</p>}
+                {errors.bloodType && (
+                  <p className="text-red-500 text-xs mt-1">
+                    {errors.bloodType}
+                  </p>
+                )}
               </div>
               <div>
                 <label className="block font-medium mb-1">Ngày sinh:</label>
@@ -503,11 +593,19 @@ const RoleManagement = () => {
                   onChange={handleChange}
                   min={ageLimit.min}
                   max={ageLimit.max}
-                  className={`w-full px-3 py-2 border rounded ${errors.date_of_birth ? "border-red-500" : "border-gray-300"}`}
+                  className={`w-full px-3 py-2 border rounded ${
+                    errors.date_of_birth ? "border-red-500" : "border-gray-300"
+                  }`}
                   required
                 />
-                <p className="text-gray-500 text-xs mt-1">Độ tuổi: từ 18 đến 60</p>
-                {errors.date_of_birth && <p className="text-red-500 text-xs mt-1">{errors.date_of_birth}</p>}
+                <p className="text-gray-500 text-xs mt-1">
+                  Độ tuổi: từ 18 đến 60
+                </p>
+                {errors.date_of_birth && (
+                  <p className="text-red-500 text-xs mt-1">
+                    {errors.date_of_birth}
+                  </p>
+                )}
               </div>
               <div className="flex justify-end gap-3 mt-6">
                 <button
@@ -536,7 +634,9 @@ const RoleManagement = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl shadow-xl p-8 max-w-sm w-full mx-4 relative border-t-4 border-[#D32F2F]">
             <h3 className="text-xl font-bold text-[#D32F2F] mb-4 text-center">
-              {actionType === "ban" ? "Xác nhận khóa tài khoản" : "Xác nhận mở khóa tài khoản"}
+              {actionType === "ban"
+                ? "Xác nhận khóa tài khoản"
+                : "Xác nhận mở khóa tài khoản"}
             </h3>
             <p className="text-gray-600 text-center mb-6">
               {actionType === "ban"
@@ -569,9 +669,13 @@ const RoleManagement = () => {
       {showPotentialPopup && (
         <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl shadow-2xl p-8 min-w-[700px] max-w-3xl w-full relative border-2 border-blue-300">
-            <h2 className="text-xl font-bold text-blue-700 mb-4">Danh sách người tiềm năng</h2>
+            <h2 className="text-xl font-bold text-blue-700 mb-4">
+              Danh sách người tiềm năng
+            </h2>
             {potentialLoading ? (
-              <div className="text-center py-8 text-lg text-gray-500">Đang tải...</div>
+              <div className="text-center py-8 text-lg text-gray-500">
+                Đang tải...
+              </div>
             ) : (
               <table className="min-w-full text-base mb-4 rounded-xl overflow-hidden shadow">
                 <thead>
@@ -584,15 +688,24 @@ const RoleManagement = () => {
                 </thead>
                 <tbody>
                   {potentialList.map((item) => (
-                    <tr key={item.Potential_ID} className="hover:bg-blue-50 transition text-center">
-                      <td className="font-semibold text-gray-800 py-2 px-4">{item.User_Name}</td>
+                    <tr
+                      key={item.Potential_ID}
+                      className="hover:bg-blue-50 transition text-center"
+                    >
+                      <td className="font-semibold text-gray-800 py-2 px-4">
+                        {item.User_Name}
+                      </td>
                       <td className="py-2 px-4">{item.Email}</td>
                       <td className="py-2 px-4">
-                        <span className={
-                          item.Status === "Approved" ? "text-green-600 font-semibold" :
-                          item.Status === "Rejected" ? "text-red-600 font-semibold" :
-                          "text-gray-600"
-                        }>
+                        <span
+                          className={
+                            item.Status === "Approved"
+                              ? "text-green-600 font-semibold"
+                              : item.Status === "Rejected"
+                              ? "text-red-600 font-semibold"
+                              : "text-gray-600"
+                          }
+                        >
                           {item.Status === "Approved" && "Đang hoạt động"}
                           {item.Status === "Rejected" && "Đã bị vô hiệu hóa"}
                         </span>
@@ -601,14 +714,24 @@ const RoleManagement = () => {
                         {item.Status === "Approved" ? (
                           <button
                             className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-700"
-                            onClick={() => handleUpdatePotentialStatus(item.Potential_ID, "Rejected")}
+                            onClick={() =>
+                              handleUpdatePotentialStatus(
+                                item.Potential_ID,
+                                "Rejected"
+                              )
+                            }
                           >
                             Khóa
                           </button>
                         ) : (
                           <button
                             className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-800"
-                            onClick={() => handleUpdatePotentialStatus(item.Potential_ID, "Approved")}
+                            onClick={() =>
+                              handleUpdatePotentialStatus(
+                                item.Potential_ID,
+                                "Approved"
+                              )
+                            }
                           >
                             Mở khóa
                           </button>
@@ -635,18 +758,23 @@ const RoleManagement = () => {
       {showNotePopup && (
         <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl shadow-2xl p-8 w-[350px] max-w-full relative border-2 border-blue-300">
-            <h3 className="text-lg font-bold text-blue-700 mb-4">Nhập ghi chú cho người tiềm năng</h3>
+            <h3 className="text-lg font-bold text-blue-700 mb-4">
+              Nhập ghi chú cho người tiềm năng
+            </h3>
             <textarea
               className="w-full border rounded px-3 py-2 mb-4"
               placeholder="Nhập ghi chú (Note)..."
               value={noteInput}
-              onChange={e => setNoteInput(e.target.value)}
+              onChange={(e) => setNoteInput(e.target.value)}
               rows={4}
             />
             <div className="flex justify-end gap-2">
               <button
                 className="bg-gray-400 hover:bg-gray-500 text-white px-4 py-2 rounded font-semibold"
-                onClick={() => { setShowNotePopup(false); setPendingPotentialUserId(null); }}
+                onClick={() => {
+                  setShowNotePopup(false);
+                  setPendingPotentialUserId(null);
+                }}
               >
                 Hủy
               </button>

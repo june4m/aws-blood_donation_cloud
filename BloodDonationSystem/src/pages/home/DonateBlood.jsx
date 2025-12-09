@@ -11,19 +11,32 @@ const DonateBlood = () => {
   const [filteredSlots, setFilteredSlots] = useState([]);
   const [dateRange, setDateRange] = useState([null, null]);
   const [startDate, endDate] = dateRange;
-  const [isSearching, setIsSearching] = useState(false);
+  const [, setIsSearching] = useState(false);
   const [myRegistrations, setMyRegistrations] = useState([]);
   const itemsPerPage = 6;
   const [currentPage, setCurrentPage] = useState(1);
 
-  const { loading, error, getSlotList, registerSlot, getCurrentUser, historyAppointmentsByUser, historyPatientByUser, cancelAppointmentByUser } = useApi();
+  const {
+    loading,
+    error,
+    getSlotList,
+    registerSlot,
+    getCurrentUser,
+    historyAppointmentsByUser,
+    historyPatientByUser,
+    cancelAppointmentByUser,
+  } = useApi();
   const navigate = useNavigate();
   const location = useLocation();
 
   // Nhận giá trị từ navigation state
   useEffect(() => {
     if (location.state?.startDate || location.state?.endDate) {
-      const { startDate: navStartDate, endDate: navEndDate, shouldFilter } = location.state;
+      const {
+        startDate: navStartDate,
+        endDate: navEndDate,
+        shouldFilter,
+      } = location.state;
       setDateRange([navStartDate, navEndDate]);
       if (shouldFilter && slots.length > 0) {
         filterSlotsByDateWithParams(navStartDate, navEndDate);
@@ -52,7 +65,11 @@ const DonateBlood = () => {
   }, [getCurrentUser, getSlotList]);
 
   useEffect(() => {
-    if (localStorage.getItem("isLoggedIn") === "true" && user && user.user_role === "member") {
+    if (
+      localStorage.getItem("isLoggedIn") === "true" &&
+      user &&
+      user.user_role === "member"
+    ) {
       const fetchHistory = async () => {
         try {
           const res = await historyAppointmentsByUser();
@@ -68,32 +85,39 @@ const DonateBlood = () => {
   }, [historyAppointmentsByUser, user]);
 
   useEffect(() => {
-    if (location.state?.shouldFilter && slots.length > 0 && (location.state?.startDate || location.state?.endDate)) {
+    if (
+      location.state?.shouldFilter &&
+      slots.length > 0 &&
+      (location.state?.startDate || location.state?.endDate)
+    ) {
       const { startDate: navStartDate, endDate: navEndDate } = location.state;
       filterSlotsByDateWithParams(navStartDate, navEndDate);
     }
   }, [slots, location.state]);
 
-  const filterSlotsByDateWithParams = useCallback((startDateStr, endDateStr) => {
-    if (!startDateStr && !endDateStr) {
-      setFilteredSlots(slots);
-      return;
-    }
-    const filtered = slots.filter(slot => {
-      const slotDate = new Date(slot.Slot_Date);
-      const startFilter = startDateStr ? new Date(startDateStr) : null;
-      const endFilter = endDateStr ? new Date(endDateStr) : null;
-      if (startFilter && endFilter) {
-        return slotDate >= startFilter && slotDate <= endFilter;
-      } else if (startFilter) {
-        return slotDate >= startFilter;
-      } else if (endFilter) {
-        return slotDate <= endFilter;
+  const filterSlotsByDateWithParams = useCallback(
+    (startDateStr, endDateStr) => {
+      if (!startDateStr && !endDateStr) {
+        setFilteredSlots(slots);
+        return;
       }
-      return true;
-    });
-    setFilteredSlots(filtered);
-  }, [slots]);
+      const filtered = slots.filter((slot) => {
+        const slotDate = new Date(slot.Slot_Date);
+        const startFilter = startDateStr ? new Date(startDateStr) : null;
+        const endFilter = endDateStr ? new Date(endDateStr) : null;
+        if (startFilter && endFilter) {
+          return slotDate >= startFilter && slotDate <= endFilter;
+        } else if (startFilter) {
+          return slotDate >= startFilter;
+        } else if (endFilter) {
+          return slotDate <= endFilter;
+        }
+        return true;
+      });
+      setFilteredSlots(filtered);
+    },
+    [slots]
+  );
 
   const getStatusLabel = (status) => {
     switch (status) {
@@ -126,14 +150,14 @@ const DonateBlood = () => {
   const handleRegister = async (slotId) => {
     if (!user || localStorage.getItem("isLoggedIn") !== "true") {
       const result = await Swal.fire({
-        title: 'Lưu ý',
-        text: 'Vui lòng đăng nhập để đặt lịch hiến máu.',
-        icon: 'warning',
+        title: "Lưu ý",
+        text: "Vui lòng đăng nhập để đặt lịch hiến máu.",
+        icon: "warning",
         showCancelButton: true,
-        confirmButtonColor: '#3085d6',
-        cancelButtonColor: '#d33',
-        confirmButtonText: 'Xác nhận',
-        cancelButtonText: 'Hủy'
+        confirmButtonColor: "#3085d6",
+        cancelButtonColor: "#d33",
+        confirmButtonText: "Xác nhận",
+        cancelButtonText: "Hủy",
       });
       if (result.isConfirmed) {
         navigate("/login");
@@ -141,52 +165,93 @@ const DonateBlood = () => {
       return;
     }
     if (user.user_role !== "member") {
-      toast.error("Tài khoản của bạn không có quyền đăng ký hiến máu"), {
-        position: "top-right",
-        autoClose: 3000
-      }
+      toast.error("Tài khoản của bạn không có quyền đăng ký hiến máu"),
+        {
+          position: "top-right",
+          autoClose: 3000,
+        };
       return;
     }
     if (!user.user_id) {
-      toast.error("Không tìm thấy ID người dùng"), {
-        position: "top-right",
-        autoClose: 3000
-      }
+      toast.error("Không tìm thấy ID người dùng"),
+        {
+          position: "top-right",
+          autoClose: 3000,
+        };
       return;
     }
     try {
-      const selectedSlot = slots.find(slot => slot.Slot_ID === slotId);
+      const selectedSlot = slots.find((slot) => slot.Slot_ID === slotId);
       if (!selectedSlot) {
         toast.error("Không tìm thấy thông tin ca hiến máu!");
         return;
       }
       const result = await Swal.fire({
-        title: '<span style="color: #dc2626;">🩸 Xác nhận đăng ký hiến máu</span>',
+        title:
+          '<span style="color: #dc2626;">🩸 Xác nhận đăng ký hiến máu</span>',
         html: `
           <div style="text-align: left; padding: 20px;">
             <div style="background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%); padding: 20px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
               <div style="display: flex; align-items: center; margin-bottom: 15px;">
                 <div style="width: 50px; height: 50px; background: linear-gradient(135deg, #22c55e, #16a34a); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 15px;">
-                  <span style="color: white; font-size: 20px; font-weight: bold;">${(user.full_name || 'U').charAt(0).toUpperCase()}</span>
+                  <span style="color: white; font-size: 20px; font-weight: bold;">${(
+                    user.full_name || "U"
+                  )
+                    .charAt(0)
+                    .toUpperCase()}</span>
                 </div>
                 <div>
-                  <h4 style="color: #16a34a; margin: 0; font-size: 18px;">👤 ${user.full_name || 'Người dùng'}</h4>
-                  <p style="margin: 5px 0 0 0; color: #6b7280; font-size: 14px;">${user.email || 'Chưa cập nhật email'}</p>
+                  <h4 style="color: #16a34a; margin: 0; font-size: 18px;">👤 ${
+                    user.full_name || "Người dùng"
+                  }</h4>
+                  <p style="margin: 5px 0 0 0; color: #6b7280; font-size: 14px;">${
+                    user.email || "Chưa cập nhật email"
+                  }</p>
                 </div>
               </div>
               <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 14px;">
-                <div><strong>📱 SĐT:</strong> ${user.phone || 'Chưa cập nhật'}</div>
-                <div><strong>🎂 Tuổi:</strong> ${user.date_of_birth ? new Date().getFullYear() - new Date(user.date_of_birth).getFullYear() : 'Chưa rõ'}</div>
-                <div><strong>⚧ Giới tính:</strong> ${user.gender === 'M' ? 'Nam' : user.gender === 'F' ? 'Nữ' : 'Chưa rõ'}</div>
-                <div><strong>🏠 Địa chỉ:</strong> ${user.address ? (user.address.length > 20 ? user.address.substring(0, 20) + '...' : user.address) : 'Chưa cập nhật'}</div>
+                <div><strong>📱 SĐT:</strong> ${
+                  user.phone || "Chưa cập nhật"
+                }</div>
+                <div><strong>🎂 Tuổi:</strong> ${
+                  user.date_of_birth
+                    ? new Date().getFullYear() -
+                      new Date(user.date_of_birth).getFullYear()
+                    : "Chưa rõ"
+                }</div>
+                <div><strong>⚧ Giới tính:</strong> ${
+                  user.gender === "M"
+                    ? "Nam"
+                    : user.gender === "F"
+                    ? "Nữ"
+                    : "Chưa rõ"
+                }</div>
+                <div><strong>🏠 Địa chỉ:</strong> ${
+                  user.address
+                    ? user.address.length > 20
+                      ? user.address.substring(0, 20) + "..."
+                      : user.address
+                    : "Chưa cập nhật"
+                }</div>
               </div>
             </div>
             <div style="background: linear-gradient(135deg, #fef2f2 0%, #fef7f7 100%); padding: 20px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
               <h4 style="color: #dc2626; margin: 0 0 15px 0; font-size: 16px;">📅 Chi tiết ca hiến máu</h4>
               <div style="background: white; padding: 15px; border-radius: 8px; border-left: 4px solid #dc2626;">
-                <p style="margin: 8px 0; font-size: 15px;"><strong>📆 Ngày:</strong> <span style="color: #dc2626;">${formatDateVN(selectedSlot.Slot_Date)}</span></p>
-                <p style="margin: 8px 0; font-size: 15px;"><strong>🕐 Thời gian:</strong> <span style="color: #dc2626;">${formatTimeVN(selectedSlot.Start_Time)} - ${formatTimeVN(selectedSlot.End_Time)}</span></p>
-                <p style="margin: 8px 0; font-size: 15px;"><strong>👥 Lượt đăng ký:</strong> <span style="color: ${parseInt(selectedSlot.Volume || 0) >= parseInt(selectedSlot.Max_Volume || 0) * 0.8 ? '#dc2626' : '#16a34a'};">${selectedSlot.Volume || 0}/${selectedSlot.Max_Volume || 0} người</span></p>
+                <p style="margin: 8px 0; font-size: 15px;"><strong>📆 Ngày:</strong> <span style="color: #dc2626;">${formatDateVN(
+                  selectedSlot.Slot_Date
+                )}</span></p>
+                <p style="margin: 8px 0; font-size: 15px;"><strong>🕐 Thời gian:</strong> <span style="color: #dc2626;">${formatTimeVN(
+                  selectedSlot.Start_Time
+                )} - ${formatTimeVN(selectedSlot.End_Time)}</span></p>
+                <p style="margin: 8px 0; font-size: 15px;"><strong>👥 Lượt đăng ký:</strong> <span style="color: ${
+                  parseInt(selectedSlot.Volume || 0) >=
+                  parseInt(selectedSlot.Max_Volume || 0) * 0.8
+                    ? "#dc2626"
+                    : "#16a34a"
+                };">${selectedSlot.Volume || 0}/${
+          selectedSlot.Max_Volume || 0
+        } người</span></p>
               </div>
             </div>
             <div style="background: linear-gradient(135deg, #eff6ff 0%, #f0f9ff 100%); padding: 20px; border-radius: 12px; margin-bottom: 15px;">
@@ -202,23 +267,27 @@ const DonateBlood = () => {
                 </ul>
               </div>
             </div>
-            ${!user.phone || !user.address || !user.full_name ? `
+            ${
+              !user.phone || !user.address || !user.full_name
+                ? `
               <div style="background: #fef3c7; padding: 15px; border-radius: 8px; border-left: 4px solid #f59e0b;">
                 <p style="margin: 0; font-size: 14px; color: #92400e;">
                   <strong>📋 Lưu ý:</strong> Một số thông tin cá nhân chưa được cập nhật. 
                   Vui lòng hoàn thiện hồ sơ để quá trình hiến máu được thuận lợi hơn.
                 </p>
               </div>
-            ` : ''}
+            `
+                : ""
+            }
           </div>
         `,
         showCancelButton: true,
-        confirmButtonColor: '#dc2626',
-        cancelButtonColor: '#6b7280',
-        confirmButtonText: '✅ Xác nhận đăng ký',
-        cancelButtonText: '❌ Hủy bỏ',
-        width: '700px',
-        padding: '0'
+        confirmButtonColor: "#dc2626",
+        cancelButtonColor: "#6b7280",
+        confirmButtonText: "✅ Xác nhận đăng ký",
+        cancelButtonText: "❌ Hủy bỏ",
+        width: "700px",
+        padding: "0",
       });
       if (result.isConfirmed) {
         await registerSlot(slotId, user.user_id);
@@ -265,12 +334,10 @@ const DonateBlood = () => {
   // Helper format ngày tiếng Việt
   const formatDateVN = (dateString) => {
     if (!dateString) return "";
-    const date = new Date(dateString);
-    return date.toLocaleDateString("vi-VN", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    });
+    // Lấy phần ngày (YYYY-MM-DD) và parse trực tiếp để tránh lệch timezone
+    const datePart = dateString.toString().slice(0, 10);
+    const [year, month, day] = datePart.split("-");
+    return `${day}/${month}/${year}`;
   };
 
   const formatTimeVN = (timeString) => {
@@ -299,8 +366,12 @@ const DonateBlood = () => {
 
   // Sắp xếp slot theo ngày tăng dần
   const sortedFilteredSlots = [...filteredSlots].sort((a, b) => {
-    const dateA = new Date((a.Slot_Date || '').slice(0, 10) + 'T00:00:00').getTime();
-    const dateB = new Date((b.Slot_Date || '').slice(0, 10) + 'T00:00:00').getTime();
+    const dateA = new Date(
+      (a.Slot_Date || "").slice(0, 10) + "T00:00:00"
+    ).getTime();
+    const dateB = new Date(
+      (b.Slot_Date || "").slice(0, 10) + "T00:00:00"
+    ).getTime();
     return dateA - dateB;
   });
 
@@ -339,14 +410,18 @@ const DonateBlood = () => {
       ) : filteredSlots.length === 0 ? (
         <div className="text-center py-8 bg-white rounded-lg shadow p-4">
           <p className="text-lg text-gray-600">
-            {startDate || endDate ? "Không có lịch hiến máu nào trong khoảng thời gian đã chọn" : "Không có lịch hiến máu nào"}
+            {startDate || endDate
+              ? "Không có lịch hiến máu nào trong khoảng thời gian đã chọn"
+              : "Không có lịch hiến máu nào"}
           </p>
         </div>
       ) : (
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {paginatedSlots.map((slot) => {
-              const isSlotFull = slot.Status !== 'A' || (parseInt(slot.Volume) >= parseInt(slot.Max_Volume));
+              const isSlotFull =
+                slot.Status !== "A" ||
+                parseInt(slot.Volume) >= parseInt(slot.Max_Volume);
               const isRegistered =
                 myRegistrations &&
                 myRegistrations.some((reg) => reg.Slot_ID === slot.Slot_ID);
@@ -366,11 +441,15 @@ const DonateBlood = () => {
                       <p className="text-gray-700 mb-2">
                         <span className="font-medium">Thời gian: </span>
                         {slot.Start_Time && slot.End_Time
-                          ? `${formatTimeVN(slot.Start_Time)} - ${formatTimeVN(slot.End_Time)}`
+                          ? `${formatTimeVN(slot.Start_Time)} - ${formatTimeVN(
+                              slot.End_Time
+                            )}`
                           : "-"}
                       </p>
                       <p className="text-gray-700 mb-2">
-                        <span className="font-medium">Số lượng đã đăng ký: </span>
+                        <span className="font-medium">
+                          Số lượng đã đăng ký:{" "}
+                        </span>
                         <span
                           className={
                             parseInt(slot.Volume) >= parseInt(slot.Max_Volume)
@@ -388,30 +467,36 @@ const DonateBlood = () => {
                             Đang mở đăng ký
                           </span>
                         ) : (
-                          <span className="text-red-600 font-medium">Đã đầy</span>
+                          <span className="text-red-600 font-medium">
+                            Đã đầy
+                          </span>
                         )}
                       </p>
                     </div>
                     <button
                       disabled={loading || (isSlotFull && !isRegistered)}
                       className={`w-full py-2 px-4 rounded transition duration-300 flex items-center justify-center font-semibold
-                        ${isSlotFull && !isRegistered
-                          ? "bg-yellow-200 text-yellow-700 cursor-not-allowed"
-                          : isRegistered
+                        ${
+                          isSlotFull && !isRegistered
+                            ? "bg-yellow-200 text-yellow-700 cursor-not-allowed"
+                            : isRegistered
                             ? "bg-red-50 border border-red-200 text-red-700 hover:bg-red-100 hover:border-red-300"
                             : "bg-red-600 hover:bg-red-700 text-white"
-                      }`}
+                        }`}
                       title={
                         isRegistered
                           ? "Bạn đã đăng ký ca này. Nhấn để hủy đăng ký."
                           : isSlotFull
-                            ? "Ca này đã đầy, vui lòng chọn ca khác."
-                            : ""
+                          ? "Ca này đã đầy, vui lòng chọn ca khác."
+                          : ""
                       }
                       onClick={() => {
                         if (isRegistered) {
-                          const appointment = myRegistrations.find(reg => reg.Slot_ID === slot.Slot_ID);
-                          if (appointment) handleCancelAppointment(appointment.Appointment_ID);
+                          const appointment = myRegistrations.find(
+                            (reg) => reg.Slot_ID === slot.Slot_ID
+                          );
+                          if (appointment)
+                            handleCancelAppointment(appointment.Appointment_ID);
                         } else {
                           handleRegister(slot.Slot_ID);
                         }
@@ -460,7 +545,9 @@ const DonateBlood = () => {
                 .filter((n) =>
                   totalPages <= 5
                     ? true
-                    : Math.abs(n - currentPage) <= 2 || n === 1 || n === totalPages
+                    : Math.abs(n - currentPage) <= 2 ||
+                      n === 1 ||
+                      n === totalPages
                 )
                 .map((n, idx, arr) => {
                   const isEllipsis = idx > 0 && n - arr[idx - 1] > 1;

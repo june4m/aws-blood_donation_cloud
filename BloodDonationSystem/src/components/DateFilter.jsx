@@ -1,11 +1,20 @@
 import { useState, useEffect } from "react";
 import { FaCalendarAlt, FaChevronLeft, FaChevronRight } from "react-icons/fa";
 
-export function DateFilter({ onSearch, onDateChange, startDate, endDate, modernStyle }) {
+export function DateFilter({
+  onSearch,
+  onDateChange,
+  startDate,
+  endDate,
+}) {
   const [isOpen, setIsOpen] = useState(false);
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [selectedStartDate, setSelectedStartDate] = useState(startDate ? new Date(startDate) : null);
-  const [selectedEndDate, setSelectedEndDate] = useState(endDate ? new Date(endDate) : null);
+  const [selectedStartDate, setSelectedStartDate] = useState(
+    startDate ? new Date(startDate) : null
+  );
+  const [selectedEndDate, setSelectedEndDate] = useState(
+    endDate ? new Date(endDate) : null
+  );
 
   // Sync với props khi có thay đổi
   useEffect(() => {
@@ -23,7 +32,7 @@ export function DateFilter({ onSearch, onDateChange, startDate, endDate, modernS
     return date.toLocaleDateString("vi-VN", {
       day: "2-digit",
       month: "2-digit",
-      year: "numeric"
+      year: "numeric",
     });
   };
 
@@ -37,43 +46,52 @@ export function DateFilter({ onSearch, onDateChange, startDate, endDate, modernS
     const startDayOfWeek = firstDay.getDay(); // 0 = Sunday
 
     const days = [];
-    
+
     // Thêm ngày trống cho tuần đầu (chuyển Sunday=0 thành Monday=0)
     const adjustedStartDay = startDayOfWeek === 0 ? 6 : startDayOfWeek - 1;
     for (let i = 0; i < adjustedStartDay; i++) {
       days.push(null);
     }
-    
+
     // Thêm các ngày trong tháng
     for (let day = 1; day <= daysInMonth; day++) {
       days.push(new Date(year, month, day));
     }
-    
+
     return days;
+  };
+
+  // Helper: format date thành YYYY-MM-DD theo local timezone
+  const formatDateLocal = (date) => {
+    if (!date) return null;
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
   };
 
   // Xử lý khi click ngày
   const handleDateClick = (date) => {
-    if (!date || date < new Date().setHours(0,0,0,0)) return;
-    
+    if (!date || date < new Date().setHours(0, 0, 0, 0)) return;
+
     if (!selectedStartDate || (selectedStartDate && selectedEndDate)) {
       // Bắt đầu chọn range mới
       setSelectedStartDate(date);
       setSelectedEndDate(null);
-      onDateChange([date.toISOString().split('T')[0], null]);
+      onDateChange([formatDateLocal(date), null]);
     } else if (selectedStartDate && !selectedEndDate) {
       // Chọn end date
       if (date >= selectedStartDate) {
         setSelectedEndDate(date);
         onDateChange([
-          selectedStartDate.toISOString().split('T')[0],
-          date.toISOString().split('T')[0]
+          formatDateLocal(selectedStartDate),
+          formatDateLocal(date),
         ]);
       } else {
         // Nếu chọn ngày trước start date, đặt làm start date mới
         setSelectedStartDate(date);
         setSelectedEndDate(null);
-        onDateChange([date.toISOString().split('T')[0], null]);
+        onDateChange([formatDateLocal(date), null]);
       }
     }
   };
@@ -87,14 +105,26 @@ export function DateFilter({ onSearch, onDateChange, startDate, endDate, modernS
   // Kiểm tra ngày có được chọn không
   const isDateSelected = (date) => {
     if (!date) return false;
-    return (selectedStartDate && date.getTime() === selectedStartDate.getTime()) ||
-           (selectedEndDate && date.getTime() === selectedEndDate.getTime());
+    return (
+      (selectedStartDate && date.getTime() === selectedStartDate.getTime()) ||
+      (selectedEndDate && date.getTime() === selectedEndDate.getTime())
+    );
   };
 
   // Tháng hiện tại
-  const currentMonth = currentDate.toLocaleDateString("vi-VN", { month: "long", year: "numeric" });
-  const nextMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1);
-  const nextMonthName = nextMonth.toLocaleDateString("vi-VN", { month: "long", year: "numeric" });
+  const currentMonth = currentDate.toLocaleDateString("vi-VN", {
+    month: "long",
+    year: "numeric",
+  });
+  const nextMonth = new Date(
+    currentDate.getFullYear(),
+    currentDate.getMonth() + 1,
+    1
+  );
+  const nextMonthName = nextMonth.toLocaleDateString("vi-VN", {
+    month: "long",
+    year: "numeric",
+  });
 
   const currentMonthDays = getDaysInMonth(currentDate);
   const nextMonthDays = getDaysInMonth(nextMonth);
@@ -102,7 +132,9 @@ export function DateFilter({ onSearch, onDateChange, startDate, endDate, modernS
   // Tạo display text
   const getDisplayText = () => {
     if (selectedStartDate && selectedEndDate) {
-      return `${formatDisplayDate(selectedStartDate)} - ${formatDisplayDate(selectedEndDate)}`;
+      return `${formatDisplayDate(selectedStartDate)} - ${formatDisplayDate(
+        selectedEndDate
+      )}`;
     } else if (selectedStartDate) {
       return formatDisplayDate(selectedStartDate);
     }
@@ -133,7 +165,7 @@ export function DateFilter({ onSearch, onDateChange, startDate, endDate, modernS
             placeholder="Chọn ngày hiến máu"
             className="w-full px-4 py-3 border border-gray-300 rounded-lg cursor-pointer focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-white text-gray-700"
           />
-          <FaCalendarAlt 
+          <FaCalendarAlt
             className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 cursor-pointer"
             onClick={() => setIsOpen(!isOpen)}
           />
@@ -144,17 +176,37 @@ export function DateFilter({ onSearch, onDateChange, startDate, endDate, modernS
           <div className="border border-gray-200 rounded-lg shadow-lg bg-white p-4 mb-4 relative z-10">
             <div className="flex justify-between items-center mb-4">
               <button
-                onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1))}
+                onClick={() =>
+                  setCurrentDate(
+                    new Date(
+                      currentDate.getFullYear(),
+                      currentDate.getMonth() - 1,
+                      1
+                    )
+                  )
+                }
                 className="p-2 hover:bg-gray-100 rounded-full transition-colors"
               >
                 <FaChevronLeft className="text-gray-600" />
               </button>
               <div className="flex space-x-8">
-                <span className="font-semibold text-gray-800 capitalize text-sm">{currentMonth}</span>
-                <span className="font-semibold text-gray-800 capitalize text-sm">{nextMonthName}</span>
+                <span className="font-semibold text-gray-800 capitalize text-sm">
+                  {currentMonth}
+                </span>
+                <span className="font-semibold text-gray-800 capitalize text-sm">
+                  {nextMonthName}
+                </span>
               </div>
               <button
-                onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1))}
+                onClick={() =>
+                  setCurrentDate(
+                    new Date(
+                      currentDate.getFullYear(),
+                      currentDate.getMonth() + 1,
+                      1
+                    )
+                  )
+                }
                 className="p-2 hover:bg-gray-100 rounded-full transition-colors"
               >
                 <FaChevronRight className="text-gray-600" />
@@ -165,11 +217,16 @@ export function DateFilter({ onSearch, onDateChange, startDate, endDate, modernS
               {/* Tháng hiện tại */}
               <div>
                 <div className="grid grid-cols-7 gap-1 mb-2">
-                  {['Th 2', 'Th 3', 'Th 4', 'Th 5', 'Th 6', 'Th 7', 'CN'].map(day => (
-                    <div key={day} className="text-center text-xs text-gray-500 font-medium py-1">
-                      {day}
-                    </div>
-                  ))}
+                  {["Th 2", "Th 3", "Th 4", "Th 5", "Th 6", "Th 7", "CN"].map(
+                    (day) => (
+                      <div
+                        key={day}
+                        className="text-center text-xs text-gray-500 font-medium py-1"
+                      >
+                        {day}
+                      </div>
+                    )
+                  )}
                 </div>
                 <div className="grid grid-cols-7 gap-1">
                   {currentMonthDays.map((date, index) => (
@@ -178,14 +235,33 @@ export function DateFilter({ onSearch, onDateChange, startDate, endDate, modernS
                       onClick={() => handleDateClick(date)}
                       className={`
                         h-8 w-8 flex items-center justify-center text-xs cursor-pointer rounded-full transition-all
-                        ${!date ? 'cursor-default' : ''}
-                        ${date && date < new Date().setHours(0,0,0,0) ? 'text-gray-300 cursor-not-allowed' : ''}
-                        ${date && isDateSelected(date) ? 'bg-red-600 text-white font-medium' : ''}
-                        ${date && isDateInRange(date) && !isDateSelected(date) ? 'bg-red-100 text-red-600' : ''}
-                        ${date && date >= new Date().setHours(0,0,0,0) && !isDateSelected(date) && !isDateInRange(date) ? 'hover:bg-gray-100 text-gray-700' : ''}
+                        ${!date ? "cursor-default" : ""}
+                        ${
+                          date && date < new Date().setHours(0, 0, 0, 0)
+                            ? "text-gray-300 cursor-not-allowed"
+                            : ""
+                        }
+                        ${
+                          date && isDateSelected(date)
+                            ? "bg-red-600 text-white font-medium"
+                            : ""
+                        }
+                        ${
+                          date && isDateInRange(date) && !isDateSelected(date)
+                            ? "bg-red-100 text-red-600"
+                            : ""
+                        }
+                        ${
+                          date &&
+                          date >= new Date().setHours(0, 0, 0, 0) &&
+                          !isDateSelected(date) &&
+                          !isDateInRange(date)
+                            ? "hover:bg-gray-100 text-gray-700"
+                            : ""
+                        }
                       `}
                     >
-                      {date ? date.getDate() : ''}
+                      {date ? date.getDate() : ""}
                     </div>
                   ))}
                 </div>
@@ -194,11 +270,16 @@ export function DateFilter({ onSearch, onDateChange, startDate, endDate, modernS
               {/* Tháng tiếp theo */}
               <div>
                 <div className="grid grid-cols-7 gap-1 mb-2">
-                  {['Th 2', 'Th 3', 'Th 4', 'Th 5', 'Th 6', 'Th 7', 'CN'].map(day => (
-                    <div key={day} className="text-center text-xs text-gray-500 font-medium py-1">
-                      {day}
-                    </div>
-                  ))}
+                  {["Th 2", "Th 3", "Th 4", "Th 5", "Th 6", "Th 7", "CN"].map(
+                    (day) => (
+                      <div
+                        key={day}
+                        className="text-center text-xs text-gray-500 font-medium py-1"
+                      >
+                        {day}
+                      </div>
+                    )
+                  )}
                 </div>
                 <div className="grid grid-cols-7 gap-1">
                   {nextMonthDays.map((date, index) => (
@@ -207,14 +288,33 @@ export function DateFilter({ onSearch, onDateChange, startDate, endDate, modernS
                       onClick={() => handleDateClick(date)}
                       className={`
                         h-8 w-8 flex items-center justify-center text-xs cursor-pointer rounded-full transition-all
-                        ${!date ? 'cursor-default' : ''}
-                        ${date && date < new Date().setHours(0,0,0,0) ? 'text-gray-300 cursor-not-allowed' : ''}
-                        ${date && isDateSelected(date) ? 'bg-red-600 text-white font-medium' : ''}
-                        ${date && isDateInRange(date) && !isDateSelected(date) ? 'bg-red-100 text-red-600' : ''}
-                        ${date && date >= new Date().setHours(0,0,0,0) && !isDateSelected(date) && !isDateInRange(date) ? 'hover:bg-gray-100 text-gray-700' : ''}
+                        ${!date ? "cursor-default" : ""}
+                        ${
+                          date && date < new Date().setHours(0, 0, 0, 0)
+                            ? "text-gray-300 cursor-not-allowed"
+                            : ""
+                        }
+                        ${
+                          date && isDateSelected(date)
+                            ? "bg-red-600 text-white font-medium"
+                            : ""
+                        }
+                        ${
+                          date && isDateInRange(date) && !isDateSelected(date)
+                            ? "bg-red-100 text-red-600"
+                            : ""
+                        }
+                        ${
+                          date &&
+                          date >= new Date().setHours(0, 0, 0, 0) &&
+                          !isDateSelected(date) &&
+                          !isDateInRange(date)
+                            ? "hover:bg-gray-100 text-gray-700"
+                            : ""
+                        }
                       `}
                     >
-                      {date ? date.getDate() : ''}
+                      {date ? date.getDate() : ""}
                     </div>
                   ))}
                 </div>
@@ -224,7 +324,7 @@ export function DateFilter({ onSearch, onDateChange, startDate, endDate, modernS
         )}
 
         {/* Search Button */}
-        <button 
+        <button
           onClick={() => {
             setIsOpen(false);
             onSearch();

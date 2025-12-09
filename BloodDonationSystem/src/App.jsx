@@ -52,7 +52,17 @@ function App() {
   return (
     <>
       <BrowserRouter>
-        <ToastContainer />
+        <ToastContainer
+          autoClose={8000}
+          position="top-right"
+          hideProgressBar={false}
+          newestOnTop={false}
+          closeOnClick
+          rtl={false}
+          pauseOnFocusLoss
+          draggable
+          pauseOnHover
+        />
         <Routes>
           {/* Các route công khai */}
           <Route element={<ProtectedRoute />}>
@@ -121,7 +131,10 @@ function App() {
               <Route path="/admin" element={<AdminDashboard />} />
               <Route path="/admin/create-slot" element={<CreateSlot />} />
               <Route path="/admin/manage-role" element={<RoleManage />} />
-              <Route path="/admin/report-history" element={<StaffReportHistory />} />
+              <Route
+                path="/admin/report-history"
+                element={<StaffReportHistory />}
+              />
               <Route
                 path="/admin/blood-inventory"
                 element={<BloodInventory />}

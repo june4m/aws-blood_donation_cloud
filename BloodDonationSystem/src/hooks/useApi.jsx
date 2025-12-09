@@ -7,10 +7,9 @@ const useApi = () => {
   // Append /api if VITE_API_URL doesn't already end with /api
   const apiUrl = import.meta.env.VITE_API_URL || "";
   const BASE_URL = apiUrl.endsWith("/api") ? apiUrl : `${apiUrl}/api`;
-  
+
   // Auth utilities
   const isLoggedIn = useCallback(() => {
-    console.log("Checking login status...");
     return localStorage.getItem("isLoggedIn") === "true";
   }, []);
 
@@ -45,7 +44,7 @@ const useApi = () => {
         // Xử lý 401 - Authentication error
         if (response.status === 401) {
           if (window.location.pathname !== "/login") {
-            console.log("HRE")
+            console.log("HRE");
             clearAuthData();
             setTimeout(() => {
               window.location.href = "/login";
