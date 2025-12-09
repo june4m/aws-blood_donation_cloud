@@ -5,6 +5,26 @@ import Database from '../services/database.services'
 export class SlotRepository {
   async createSlot(slotData: any) {
     console.log('CreateSlot Repository')
+
+    const { ...fields } = slotData
+
+    // Kiểm tra slot đã tồn tại với cùng ngày và khung giờ
+    const checkDuplicateQuery = `
+      SELECT COUNT(*) AS count
+      FROM Slot
+      WHERE Slot_Date = ? AND Start_Time = ? AND End_Time = ?
+    `
+    const duplicateResult = await Database.query(checkDuplicateQuery, [
+      fields.Slot_Date,
+      fields.Start_Time,
+      fields.End_Time
+    ])
+
+    if (duplicateResult[0]?.count > 0) {
+      throw new Error('Ca hiến máu với ngày và khung giờ này đã tồn tại!')
+    }
+
+    // Generate new Slot_ID
     let newSlotId = 'S001'
     const lastId = `
       SELECT Slot_ID
@@ -22,7 +42,6 @@ export class SlotRepository {
     }
 
     try {
-      const { ...fields } = slotData
       const insertQuery = `
         INSERT INTO Slot (Slot_ID, Slot_Date, Start_Time, Volume, Max_Volume, End_Time, Status, Admin_ID)
         VALUES (?, ?, ?, '0', '200', ?, 'A', 'U001')
