@@ -25,20 +25,22 @@ ChartJS.register(
 );
 
 const BloodInventory = () => {
-  const { getAllBloodUnit, getBloodBank, loading } = useApi();
+  const { getAllBloodUnit, getBloodUnitAvailable, getBloodBank, loading } = useApi();
   const navigate = useNavigate(); // Thêm dòng này
 
   // State cho thống kê lô máu
   const [bloodUnitStats, setBloodUnitStats] = useState([]);
   const [bloodBankStats, setBloodBankStats] = useState([]);
   const [bloodUnits, setBloodUnits] = useState([]);
+  const [allBloodUnits, setAllBloodUnits] = useState([]); // Tất cả BloodUnit cho bảng thống kê theo trạng thái
   const [bloodBankData, setBloodBankData] = useState([]);
 
-  // Fetch dữ liệu lô máu và tính thống kê
+  // Fetch dữ liệu lô máu Available và tính thống kê
   useEffect(() => {
     const fetchBloodUnits = async () => {
       try {
-        const res = await getAllBloodUnit();
+        // Chỉ lấy lô máu có status = 'Available'
+        const res = await getBloodUnitAvailable();
         const units = res.data || [];
         setBloodUnits(units);
 
@@ -70,6 +72,19 @@ const BloodInventory = () => {
     fetchBloodUnits();
     // Scroll to top khi component mount
     window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [getBloodUnitAvailable]);
+
+  // Fetch tất cả BloodUnit cho bảng thống kê theo trạng thái
+  useEffect(() => {
+    const fetchAllBloodUnits = async () => {
+      try {
+        const res = await getAllBloodUnit();
+        setAllBloodUnits(res.data || []);
+      } catch (err) {
+        console.error("Load all blood units failed", err);
+      }
+    };
+    fetchAllBloodUnits();
   }, [getAllBloodUnit]);
 
   // Fetch dữ liệu ngân hàng máu và tính thống kê
@@ -109,71 +124,7 @@ const BloodInventory = () => {
   }, [getBloodBank]);
 
   // Reload data function
-  const handleReload = async () => {
-    try {
-      // Scroll to top khi reload
-      window.scrollTo({ top: 0, behavior: "smooth" });
-
-      const [bloodUnitRes, bloodBankRes] = await Promise.all([
-        getAllBloodUnit(),
-        getBloodBank(),
-      ]);
-
-      // Update blood units
-      const units = bloodUnitRes.data || [];
-      setBloodUnits(units);
-
-      // Update blood bank
-      const bankData = bloodBankRes.data || [];
-      setBloodBankData(bankData);
-
-      // Recalculate stats for blood units
-      const unitGroupStats = {};
-      units.forEach((unit) => {
-        const group = unit.BloodGroup || "Unknown";
-        const volume = parseInt(unit.Volume) || 0;
-        if (unitGroupStats[group]) {
-          unitGroupStats[group] += volume;
-        } else {
-          unitGroupStats[group] = volume;
-        }
-      });
-
-      const unitStatsArray = Object.entries(unitGroupStats).map(
-        ([group, total]) => ({
-          group,
-          total,
-          count: units.filter((u) => u.BloodGroup === group).length,
-        })
-      );
-
-      setBloodUnitStats(unitStatsArray);
-
-      // Recalculate stats for blood bank
-      const bankGroupStats = {};
-      bankData.forEach((item) => {
-        const group = item.BloodGroup || "Unknown";
-        const volume = parseInt(item.Volume) || 0;
-        if (bankGroupStats[group]) {
-          bankGroupStats[group] += volume;
-        } else {
-          bankGroupStats[group] = volume;
-        }
-      });
-
-      const bankStatsArray = Object.entries(bankGroupStats).map(
-        ([group, total]) => ({
-          group,
-          total,
-          count: bankData.filter((u) => u.BloodGroup === group).length,
-        })
-      );
-
-      setBloodBankStats(bankStatsArray);
-    } catch (err) {
-      console.error("Reload failed", err);
-    }
-  };
+  
 
   // Biểu đồ thống kê lô máu theo nhóm máu
   const bloodUnitChartData = {
@@ -207,19 +158,22 @@ const BloodInventory = () => {
   const statusList = [
     { key: "Available", label: "Còn sử dụng", color: "text-green-600" },
     { key: "Expired", label: "Hết hạn", color: "text-gray-500" },
-    { key: "Used", label: "Hết máu", color: "text-orange-600" },
+    { key: "Used", label: "Đã sử dụng", color: "text-orange-600" },
   ];
 
-  // Tính thống kê lô máu theo nhóm máu và trạng thái
+  // Tính thống kê lô máu theo nhóm máu và trạng thái (sử dụng allBloodUnits)
   const bloodUnitStatusStats = bloodTypeList.map((group) => {
     const byStatus = {};
     statusList.forEach((status) => {
-      const filtered = bloodUnits.filter(
+      const filtered = allBloodUnits.filter(
         (unit) => unit.BloodGroup === group && unit.Status === status.key
       );
       byStatus[status.key] = {
         count: filtered.length,
-        total: filtered.reduce((sum, unit) => sum + Number(unit.Volume || 0), 0),
+        total: filtered.reduce(
+          (sum, unit) => sum + Number(unit.Volume || 0),
+          0
+        ),
       };
     });
     return { group, byStatus };
@@ -435,18 +389,24 @@ const BloodInventory = () => {
       {/* Bảng thống kê nhóm máu theo trạng thái */}
       <div className="bg-white rounded-2xl shadow-lg p-8 mb-8">
         <h2 className="text-2xl font-bold flex items-center gap-2 mb-6">
-          <span role="img" aria-label="chart" className="text-3xl">📊</span>
+          <span role="img" aria-label="chart" className="text-3xl">
+            📊
+          </span>
           Thống kê Lô Máu Theo Trạng Thái
         </h2>
         <div className="overflow-x-auto">
           <table className="min-w-[700px] w-full text-base border-separate border-spacing-0">
             <thead>
               <tr className="bg-gray-100 text-gray-800 rounded-lg shadow">
-                <th className="py-3 px-4 font-semibold text-center rounded-tl-xl">Nhóm máu</th>
+                <th className="py-3 px-4 font-semibold text-center rounded-tl-xl">
+                  Nhóm máu
+                </th>
                 {statusList.map((status, idx) => (
                   <th
                     key={status.key}
-                    className={`py-3 px-4 font-semibold text-center ${idx === statusList.length - 1 ? "rounded-tr-xl" : ""}`}
+                    className={`py-3 px-4 font-semibold text-center ${
+                      idx === statusList.length - 1 ? "rounded-tr-xl" : ""
+                    }`}
                   >
                     {status.label}
                   </th>
@@ -454,9 +414,14 @@ const BloodInventory = () => {
               </tr>
             </thead>
             <tbody>
-              {bloodUnitStatusStats.map((row, idx) => (
-                <tr key={row.group} className="border-b last:border-b-0 hover:bg-gray-50 transition">
-                  <td className="py-3 px-4 font-bold text-center">{row.group}</td>
+              {bloodUnitStatusStats.map((row) => (
+                <tr
+                  key={row.group}
+                  className="border-b last:border-b-0 hover:bg-gray-50 transition"
+                >
+                  <td className="py-3 px-4 font-bold text-center">
+                    {row.group}
+                  </td>
                   {statusList.map((status) => (
                     <td key={status.key} className={`py-3 px-4 text-center`}>
                       <span
@@ -468,7 +433,8 @@ const BloodInventory = () => {
                             : "text-orange-600 bg-orange-50 px-2 py-1 rounded-lg"
                         }`}
                       >
-                        {row.byStatus[status.key].count} lô, {row.byStatus[status.key].total.toLocaleString()} ml
+                        {row.byStatus[status.key].count} lô,{" "}
+                        {row.byStatus[status.key].total.toLocaleString()} ml
                       </span>
                     </td>
                   ))}

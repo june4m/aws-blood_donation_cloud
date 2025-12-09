@@ -94,8 +94,19 @@ const HeaderStaff = () => {
                     <button
                       onClick={() => setDropdown(!dropdown)}
                       className="w-9 h-9 rounded-full bg-[#D32F2F] text-white flex items-center justify-center font-bold text-lg"
+                      title={user?.user_name || "Staff"}
                     >
-                      ST
+                      {(() => {
+                        const name = user?.user_name || "";
+                        const words = name.trim().split(/\s+/);
+                        if (words.length >= 2) {
+                          // Lấy chữ cái đầu của 2 từ cuối (VD: "Nguyễn Công Minh" → "CM")
+                          return (words[words.length - 2][0] + words[words.length - 1][0]).toUpperCase();
+                        } else if (words.length === 1 && words[0]) {
+                          return words[0].substring(0, 2).toUpperCase();
+                        }
+                        return "ST";
+                      })()}
                     </button>
                     {dropdown && (
                       <div className="absolute right-0 top-full mt-2 w-48 bg-white border rounded-lg shadow-lg z-50">

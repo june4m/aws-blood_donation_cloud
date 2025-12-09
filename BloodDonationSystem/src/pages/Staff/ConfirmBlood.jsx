@@ -194,10 +194,17 @@ const ConfirmBloodPage = () => {
 
   const formatTimeVN = (timeString) => {
     if (!timeString) return "-";
-    // Lấy phần sau chữ T, ví dụ: "13:00:00.000Z"
+    
+    // Nếu có chữ T (ISO format), lấy phần sau T
     const tIndex = timeString.indexOf("T");
-    if (tIndex === -1) return "-";
-    const timePart = timeString.slice(tIndex + 1, tIndex + 6); // "13:00"
+    let timePart;
+    if (tIndex !== -1) {
+      timePart = timeString.slice(tIndex + 1, tIndex + 6); // "13:00"
+    } else {
+      // Nếu không có T, có thể là format "HH:mm:ss" hoặc "HH:mm"
+      timePart = timeString.slice(0, 5); // Lấy 5 ký tự đầu "HH:mm"
+    }
+    
     const [h, m] = timePart.split(":");
     if (!h || !m) return "-";
     return `${parseInt(h, 10)}h${m}`;

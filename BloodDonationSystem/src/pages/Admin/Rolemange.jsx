@@ -73,8 +73,23 @@ const RoleManagement = () => {
     setLoading(false);
   };
 
+  // Load danh sách potential users khi component mount
+  const fetchPotentialUserIds = async () => {
+    try {
+      const res = await getApprovedPotentialList();
+      // Chỉ lấy User_ID của những người có status khác "Rejected"
+      const userIds = (res.data || [])
+        .filter((item) => item.Status !== "Rejected")
+        .map((item) => item.User_ID);
+      setPotentialUserIds(userIds);
+    } catch (err) {
+      // Silent fail - không cần hiển thị lỗi
+    }
+  };
+
   useEffect(() => {
     fetchStaffs();
+    fetchPotentialUserIds();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -212,9 +227,10 @@ const RoleManagement = () => {
       await addPotential(pendingPotentialUserId, noteInput);
       toast.success("Đã thêm vào danh sách người tiềm năng!");
       setShowNotePopup(false);
+      // Thêm user vào danh sách potentialUserIds để disable nút
+      setPotentialUserIds((prev) => [...prev, pendingPotentialUserId]);
       setPendingPotentialUserId(null);
       setNoteInput("");
-      handleShowPotentialList(); // Cập nhật lại danh sách tiềm năng nếu cần
     } catch (err) {
       toast.error(err.message || "Thêm thất bại!");
     }

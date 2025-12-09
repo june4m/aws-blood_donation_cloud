@@ -30,31 +30,33 @@ const useApi = () => {
       const token = localStorage.getItem("accessToken");
 
       try {
-        const response = await fetch(url, {
-          headers: {
-            "Content-Type": "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-            ...(options.headers || {}),
-          },
-          ...options,
-        });
+        const headers = {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...(options.headers || {}),
+        };
 
-        console.log("API response status:", response.status);
+        const response = await fetch(url, {
+          ...options,
+          headers,
+        });
 
         // Xử lý 401 - Authentication error
         if (response.status === 401) {
-          if (window.location.pathname !== "/login") {
-            console.log("HRE");
+          const errorData = await response.json();
+
+          // Nếu token expired, redirect về login
+          if (errorData.message === "Token expired") {
             clearAuthData();
             setTimeout(() => {
               window.location.href = "/login";
             }, 100);
           }
-          throw new Error("Session expired");
+
+          throw new Error(errorData.message || "Session expired or unauthorized");
         }
 
         const data = await response.json();
-        console.log("API response data:", data); // Debug log
 
         // Xử lý response không thành công (400, 500, etc.)
         if (!response.ok) {
@@ -486,6 +488,10 @@ const useApi = () => {
     return callApi("/getAllBloodUnit");
   }, [callApi]);
 
+  const getBloodUnitAvailable = useCallback(async () => {
+    return callApi("/getBloodUnitAvailable");
+  }, [callApi]);
+
   const createBloodUnit = useCallback(
     async (BloodType_ID, Volume, Expiration_Date) => {
       return callApi("/createBloodUnit", {
@@ -508,13 +514,17 @@ const useApi = () => {
     [callApi]
   );
 
-  const addPotential = async (userId, note = "") => {
-    return callApi(`/potential/${userId}`, {
-      method: "POST",
-      body: JSON.stringify({ Note: note }),
-      headers: { "Content-Type": "application/json" },
-    });
-  };
+  const addPotential = useCallback(
+    async (userId, note = "") => {
+      console.log("addPotential called with userId:", userId, "note:", note);
+      return callApi(`/potential/${userId}`, {
+        method: "POST",
+        body: JSON.stringify({ Note: note }),
+        headers: { "Content-Type": "application/json" },
+      });
+    },
+    [callApi]
+  );
 
   const getApprovedPotentialList = useCallback(async () => {
     return callApi("/potential");
@@ -609,6 +619,7 @@ const useApi = () => {
     updateReport,
     sendRecoveryReminderEmail,
     getAllBloodUnit,
+    getBloodUnitAvailable,
     createBloodUnit,
     updateBloodUnit,
     addPotential,
