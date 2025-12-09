@@ -45,7 +45,7 @@ export const LoginPage = () => {
       const userRole = (data.data.user_role || "").trim().toLowerCase();
       console.log("Normalized role:", userRole);
 
-      // Đợi localStorage được cập nhật hoàn toàn trước khi chuyển hướng
+      // Đợi localStorage được cập nhật hoàn toàn trước khi chuyển hướng 
       setTimeout(() => {
         if (userRole === "admin") {
           navigate("/admin", { replace: true });
@@ -54,7 +54,8 @@ export const LoginPage = () => {
         } else {
           navigate("/", { replace: true });
         }
-      }, 300);
+      }, 5000);
+
     } catch (error) {
       toast.error(error.message || "Đăng nhập thất bại", {
         position: "top-center",

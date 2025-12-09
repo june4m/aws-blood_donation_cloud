@@ -7,7 +7,7 @@ const useApi = () => {
   // Append /api if VITE_API_URL doesn't already end with /api
   const apiUrl = import.meta.env.VITE_API_URL || "";
   const BASE_URL = apiUrl.endsWith("/api") ? apiUrl : `${apiUrl}/api`;
-
+  
   // Auth utilities
   const isLoggedIn = useCallback(() => {
     console.log("Checking login status...");
@@ -90,7 +90,7 @@ const useApi = () => {
         body: JSON.stringify(credentials),
       });
 
-      if (result.status) {
+      if (result.status === 200) {
         localStorage.setItem("isLoggedIn", "true");
       }
 
@@ -103,7 +103,7 @@ const useApi = () => {
     try {
       await callApi("/logout", { method: "POST" });
     } catch (error) {
-      console.log("Logout failed, clearing local data");
+      console.log("Logout failed, clearing local data", error);
     } finally {
       clearAuthData();
       window.location.href = "/login";
