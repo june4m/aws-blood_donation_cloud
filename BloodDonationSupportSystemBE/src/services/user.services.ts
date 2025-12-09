@@ -78,7 +78,7 @@ export class UserService {
 
   async findUserLogin(email: string): Promise<User | null> {
     const users = await this.userRepository.findByEmail(email)
-    console.log("finded1:",users)
+    console.log('findUserLogin: users fetched from DB', users) // Add this line t
     if (Array.isArray(users) && users.length > 0) {
       const user = users[0]
       console.log("finded:", user)

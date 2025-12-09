@@ -7,7 +7,17 @@ dotenv.config()
 
 // Middleware xác thực JWT: sử dụng jwt.verify đồng bộ
 export const verifyToken: RequestHandler = (req, res, next) => {
-  const token = req.cookies.token
+  // Lấy token từ cookie hoặc header Authorization
+  let token = req.cookies.token
+
+  // Nếu không có trong cookie, kiểm tra header Authorization
+  if (!token) {
+    const authHeader = req.headers.authorization
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.substring(7) // Bỏ "Bearer " prefix
+    }
+  }
+
   if (!token) {
     res.status(401).json({ success: false, message: 'No token provided' })
     return

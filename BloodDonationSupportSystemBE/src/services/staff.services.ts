@@ -221,6 +221,16 @@ export class staffServices {
       throw error
     }
   }
+
+  public async getBloodUnitAvailable(): Promise<bloodUnitUpdateReqBody[]> {
+    try {
+      const bloodUnits = await this.staffRepository.getBloodUnitAvailable()
+      return bloodUnits
+    } catch (error) {
+      console.error('Error in getBloodUnitAvailable:', error)
+      throw error
+    }
+  }
   public async createBloodUnit(data: bloodUnitCreateReqBody): Promise<any> {
     try {
       const bloodUnit = await this.staffRepository.createBloodUnitByStaff(data)

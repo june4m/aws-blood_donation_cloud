@@ -26,6 +26,7 @@ export class UserRepository {
       `,
       [email]
     )
+    console.log('Query result:', rows);
     return rows
   }
 

@@ -165,10 +165,9 @@ class AdminRepository {
         CONCAT(B.Blood_group, B.RHFactor) AS BloodGroup,
         U.Status,
         U.User_Role,
-        U.isDelete,
-        U.Donation_Count
+        U.isDelete
       FROM Users U 
-      JOIN BloodType B ON U.BloodType_ID = B.BloodType_ID`
+      LEFT JOIN BloodType B ON U.BloodType_ID = B.BloodType_ID`
       const users = await databaseServices.query(sql)
       return users.map((user: any) => ({
         User_ID: user.User_ID,
@@ -177,11 +176,10 @@ class AdminRepository {
         Phone: user.Phone,
         Gender: user.Gender,
         YOB: user.YOB,
-        BloodGroup: user.BloodGroup,
+        BloodGroup: user.BloodGroup || 'Chưa xác định',
         Status: user.Status,
         User_Role: user.User_Role,
-        isDelete: user.isDelete,
-        Donation_Count: user.Donation_Count
+        isDelete: user.isDelete
       }))
     } catch (error) {
       throw new Error('Failed to get user list')

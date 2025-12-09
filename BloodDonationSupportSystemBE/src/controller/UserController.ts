@@ -39,7 +39,7 @@ class UserController {
     }
     
     const { email, password } = body as LoginReqBody
-    console.log('Extracted email:', email, 'password:', password ? '***' : 'undefined')
+    console.log('Extracted email:', email, 'password:', password)
 
     if (typeof email !== 'string' || email.trim() === '') {
       console.log('No Email')
@@ -54,9 +54,7 @@ class UserController {
         email,
         password
       }
-      const user = await this.userService.findUserLogin(email)
-       
-      console.log('--result: ', user)
+      const user = await this.userService.findUserLogin(email)   
       if (!user) {
         return ResponseHandle.responseError(res, null, 'Không tìm thấy tài khoản', 404)
       }

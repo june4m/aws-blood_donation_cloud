@@ -238,23 +238,23 @@ export class StaffRepository {
 
   public async getBloodBank(): Promise<any[]> {
     try {
-      const query = `SELECT B.BloodType_ID,
+      // Tính tổng lượng máu theo nhóm máu từ BloodUnit có status = 'Available'
+      const query = `SELECT 
+        BU.BloodType_ID,
         CONCAT(BT.Blood_group, BT.RHFactor) as BloodGroup,
-        B.Volume,
-        BU.Expiration_Date,
-        BU.Status
-      FROM BloodBank B 
-      JOIN BloodType BT ON B.BloodType_ID = BT.BloodType_ID 
-      JOIN BloodUnit BU ON BU.BloodType_ID = B.BloodType_ID
-      WHERE BU.Status = 'Available'`
+        SUM(BU.Volumn) as Volume,
+        COUNT(*) as UnitCount
+      FROM BloodUnit BU 
+      JOIN BloodType BT ON BU.BloodType_ID = BT.BloodType_ID
+      WHERE BU.Status = 'Available'
+      GROUP BY BU.BloodType_ID, BT.Blood_group, BT.RHFactor`
       const result = await databaseServices.query(query)
 
       return result.map((item: any) => ({
         BloodType_ID: item.BloodType_ID,
         BloodGroup: item.BloodGroup,
         Volume: item.Volume,
-        Expiration_Date: item.Expiration_Date,
-        Status: item.Status
+        UnitCount: item.UnitCount
       }))
     } catch (error) {
       console.error('Error in getBloodBank:', error)
@@ -787,11 +787,10 @@ export class StaffRepository {
       const query = `SELECT BU.BloodUnit_ID,
         BU.BloodType_ID,
         CONCAT(BT.Blood_group, BT.RHFactor) as BloodGroup,
-        BU.Volume,
+        BU.Volumn as Volume,
         BU.Collected_Date,
         BU.Expiration_Date,
-        BU.Status,
-        BU.Staff_ID
+        BU.Status
       FROM BloodUnit BU 
       JOIN BloodType BT ON BU.BloodType_ID = BT.BloodType_ID`
       const result = await databaseServices.query(query)
@@ -803,11 +802,39 @@ export class StaffRepository {
         Volume: item.Volume,
         Collected_Date: item.Collected_Date,
         Expiration_Date: item.Expiration_Date,
-        Status: item.Status,
-        Staff_ID: item.Staff_ID
+        Status: item.Status
       })) as bloodUnitUpdateReqBody[]
     } catch (error) {
       console.error('Error in getAllBloodUnitByStaff:', error)
+      throw error
+    }
+  }
+
+  public async getBloodUnitAvailable(): Promise<bloodUnitUpdateReqBody[]> {
+    try {
+      const query = `SELECT BU.BloodUnit_ID,
+        BU.BloodType_ID,
+        CONCAT(BT.Blood_group, BT.RHFactor) as BloodGroup,
+        BU.Volumn as Volume,
+        BU.Collected_Date,
+        BU.Expiration_Date,
+        BU.Status
+      FROM BloodUnit BU 
+      JOIN BloodType BT ON BU.BloodType_ID = BT.BloodType_ID
+      WHERE BU.Status = 'Available'`
+      const result = await databaseServices.query(query)
+
+      return result.map((item: any) => ({
+        BloodUnit_ID: item.BloodUnit_ID,
+        BloodType_ID: item.BloodType_ID,
+        BloodGroup: item.BloodGroup,
+        Volume: item.Volume,
+        Collected_Date: item.Collected_Date,
+        Expiration_Date: item.Expiration_Date,
+        Status: item.Status
+      })) as bloodUnitUpdateReqBody[]
+    } catch (error) {
+      console.error('Error in getBloodUnitAvailable:', error)
       throw error
     }
   }
@@ -841,16 +868,15 @@ export class StaffRepository {
 
       const insertQuery = `
         INSERT INTO BloodUnit (
-          BloodUnit_ID, BloodType_ID, Volume, Collected_Date, Expiration_Date, Status, Staff_ID
+          BloodUnit_ID, BloodType_ID, Volumn, Collected_Date, Expiration_Date, Status
         )
-        VALUES (?, ?, ?, NOW(), ?, 'Available', ?)
+        VALUES (?, ?, ?, NOW(), ?, 'Available')
       `
       await databaseServices.query(insertQuery, [
         newBloodUnitId,
         data.BloodType_ID,
         data.Volume,
-        data.Expiration_Date || null,
-        data.Staff_ID
+        data.Expiration_Date || null
       ])
 
       return {

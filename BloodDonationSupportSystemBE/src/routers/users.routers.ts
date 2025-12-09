@@ -206,6 +206,8 @@ router.put(
 )
 router.get('/getAllBloodUnit', verifyToken, authorize(['staff', 'admin']), staffController.getAllBloodUnit)
 
+router.get('/getBloodUnitAvailable', verifyToken, authorize(['staff', 'admin']), staffController.getBloodUnitAvailable)
+
 router.post('/createBloodUnit', verifyToken, authorize(['staff']), staffController.createBloodUnit)
 
 router.put('/updateBloodUnit/:BloodUnit_ID', verifyToken, authorize(['staff']), staffController.updateBloodUnit)

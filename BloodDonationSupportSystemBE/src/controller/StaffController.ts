@@ -33,6 +33,7 @@ class StaffController {
     this.getLatestReport = this.getLatestReport.bind(this)
     this.updateReport = this.updateReport.bind(this)
     this.getAllBloodUnit = this.getAllBloodUnit.bind(this)
+    this.getBloodUnitAvailable = this.getBloodUnitAvailable.bind(this)
     this.createBloodUnit = this.createBloodUnit.bind(this)
     this.updateBloodUnit = this.updateBloodUnit.bind(this)
   }
@@ -599,6 +600,25 @@ class StaffController {
       })
     }
   }
+
+  public async getBloodUnitAvailable(req: any, res: any): Promise<void> {
+    try {
+      const bloodUnits = await this.staffServices.getBloodUnitAvailable()
+      res.status(HTTP_STATUS.OK).json({
+        success: true,
+        data: bloodUnits,
+        message: 'Available blood units retrieved successfully'
+      })
+    } catch (error: any) {
+      console.error('Error in getBloodUnitAvailable:', error)
+      res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+        success: false,
+        message: 'Failed to retrieve available blood units',
+        error: error.message || 'Internal Server Error'
+      })
+    }
+  }
+
   public async createBloodUnit(req: any, res: any): Promise<void> {
     try {
       const { BloodType_ID, Volume, Expiration_Date } = req.body
