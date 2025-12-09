@@ -78,8 +78,10 @@ export class UserService {
 
   async findUserLogin(email: string): Promise<User | null> {
     const users = await this.userRepository.findByEmail(email)
+    console.log("finded1:",users)
     if (Array.isArray(users) && users.length > 0) {
       const user = users[0]
+      console.log("finded:", user)
       return {
         email: user.email,
         password: user.password,

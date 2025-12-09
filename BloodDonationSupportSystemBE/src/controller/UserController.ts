@@ -26,11 +26,7 @@ class UserController {
     this.updatePotentialStatus = this.updatePotentialStatus.bind(this)
     this.getAllPotential = this.getAllPotential.bind(this)
   }
-  public async login(req: Request<{}, {}, LoginReqBody>, res: Response): Promise<any> {
-    console.log('Call Login')
-    console.log('Request body type:', typeof req.body)
-    console.log('Request body:', JSON.stringify(req.body))
-    console.log('Request headers:', JSON.stringify(req.headers))
+  public async login(req: Request<{}, {}, LoginReqBody>, res: Response): Promise<any> { 
     
     // Handle case where body might be a string (from API Gateway)
     let body = req.body
@@ -59,6 +55,8 @@ class UserController {
         password
       }
       const user = await this.userService.findUserLogin(email)
+       
+      console.log('--result: ', user)
       if (!user) {
         return ResponseHandle.responseError(res, null, 'Không tìm thấy tài khoản', 404)
       }
@@ -98,7 +96,8 @@ class UserController {
         {
           user_id: result.data?.user_id,
           user_name: result.data?.user_name,
-          user_role: result.data?.user_role
+          user_role: result.data?.user_role,
+          accessToken: token
         },
         `Hello, ${payload.user_name}`,
         200
