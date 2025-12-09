@@ -16,7 +16,7 @@ export class StaffRepository {
         User_ID: item.User_ID,
         Status: item.Status,
         Note: item.Note || '',
-        Staff_ID: item.Staff_ID || ''
+        Admin_ID: item.Admin_ID || ''
       })) as PotentialDonor[]
     } catch (error) {
       console.error('Error in getPotentialList:', error)
@@ -44,6 +44,22 @@ export class StaffRepository {
 
   async addMemberToPotentialList(userId: string, staffId: string, note: string): Promise<void> {
     try {
+      // 1. Validate user exists và là member active
+      const userCheck = await databaseServices.query(
+        `SELECT User_ID, User_Role, Status FROM Users WHERE User_ID = ?`,
+        [userId]
+      )
+      if (!userCheck.length) {
+        throw new Error('User not found')
+      }
+      if (userCheck[0].User_Role !== 'member') {
+        throw new Error('Only members can be added to potential donor list')
+      }
+      if (userCheck[0].Status !== 'Active') {
+        throw new Error('User is not active')
+      }
+
+      // 2. Generate new Potential_ID
       const lastRow = await databaseServices.query(
         `SELECT Potential_ID FROM PotentialDonor
          ORDER BY CAST(SUBSTRING(Potential_ID, 3, LENGTH(Potential_ID) - 2) AS UNSIGNED) DESC
@@ -55,9 +71,13 @@ export class StaffRepository {
         const num = parseInt(lastId.slice(2), 10) + 1
         newPotentialId = 'PD' + String(num).padStart(3, '0')
       }
-      const query = `INSERT INTO PotentialDonor (Potential_ID, User_ID, Status, Note, Staff_ID)
+
+      // 3. Truncate note nếu quá dài
+      const truncatedNote = note?.substring(0, 500) || ''
+
+      const query = `INSERT INTO PotentialDonor (Potential_ID, User_ID, Status, Note, Admin_ID)
                      VALUES (?, ?, 'Pending', ?, ?)`
-      await databaseServices.query(query, [newPotentialId, userId, note, staffId])
+      await databaseServices.query(query, [newPotentialId, userId, truncatedNote, staffId])
     } catch (error) {
       console.error('Error in addMemberToPotentialList:', error)
       throw error
@@ -238,23 +258,27 @@ export class StaffRepository {
 
   public async getBloodBank(): Promise<any[]> {
     try {
-      // Tính tổng lượng máu theo nhóm máu từ BloodUnit có status = 'Available'
+      // Volume từ BloodBank trừ đi Volume của BloodUnit có status Expired/Used cùng BloodType_ID
       const query = `SELECT 
-        BU.BloodType_ID,
+        BB.BloodType_ID,
         CONCAT(BT.Blood_group, BT.RHFactor) as BloodGroup,
-        SUM(BU.Volumn) as Volume,
-        COUNT(*) as UnitCount
-      FROM BloodUnit BU 
-      JOIN BloodType BT ON BU.BloodType_ID = BT.BloodType_ID
-      WHERE BU.Status = 'Available'
-      GROUP BY BU.BloodType_ID, BT.Blood_group, BT.RHFactor`
+        BB.Volume - COALESCE(
+          (SELECT SUM(BU.Volume) 
+           FROM BloodUnit BU 
+           WHERE BU.BloodType_ID = BB.BloodType_ID 
+           AND BU.Status IN ('Expired', 'Used')), 0
+        ) as Volume,
+        BB.Last_Update
+      FROM BloodBank BB 
+      JOIN BloodType BT ON BB.BloodType_ID = BT.BloodType_ID
+      WHERE BB.BloodType_ID IS NOT NULL`
       const result = await databaseServices.query(query)
 
       return result.map((item: any) => ({
         BloodType_ID: item.BloodType_ID,
         BloodGroup: item.BloodGroup,
-        Volume: item.Volume,
-        UnitCount: item.UnitCount
+        Volume: Math.max(0, item.Volume || 0), // Đảm bảo không âm
+        Last_Update: item.Last_Update
       }))
     } catch (error) {
       console.error('Error in getBloodBank:', error)
@@ -297,12 +321,27 @@ export class StaffRepository {
   }
 
 
+  // Helper function: Lấy phần địa chỉ sau dấu phẩy thứ 3
+  // VD: "123 Lê Văn Việt, Long Thạnh Mỹ, Thủ Đức, Hồ Chí Minh" => "Hồ Chí Minh"
+  private getAddressAfterThirdComma(address: string | null): string {
+    if (!address) return ''
+    const parts = address.split(', ')
+    // Lấy phần từ index 3 trở đi (sau dấu phẩy thứ 3)
+    if (parts.length > 3) {
+      return parts.slice(3).join(', ').trim().toLowerCase()
+    }
+    return ''
+  }
+
   public async getPotentialDonorCriteria(emergencyId: string): Promise<PotentialDonorCriteria[]> {
+    // Lấy thông tin emergency request và địa chỉ của requester
     const req = (await databaseServices.query(
       `
       SELECT ER.BloodType_ID AS requestedBTID,
-             ER.Requester_ID AS requesterID
+             ER.Requester_ID AS requesterID,
+             U.Address AS requesterAddress
       FROM EmergencyRequest ER
+      JOIN Users U ON ER.Requester_ID = U.User_ID
       WHERE ER.Emergency_ID = ? 
         AND (ER.Status = 'Pending' OR ER.Status = 'Rejected')
       `,
@@ -312,11 +351,15 @@ export class StaffRepository {
     if (!req.length) return []
     const requestedBTID = req[0].requestedBTID
     const requesterId = req[0].requesterID
+    const requesterAddress = req[0].requesterAddress
+    const requesterCity = this.getAddressAfterThirdComma(requesterAddress)
 
     // MySQL version of the complex query
+    // Format History: "... vào ngày YYYY-MM-DD |"
+    // DISTINCT để tránh trùng lặp, loại trừ requester khỏi danh sách
     const rows = (await databaseServices.query(
       `
-      SELECT 
+      SELECT DISTINCT
         PD.Potential_ID AS potentialId,
         U.User_ID AS userId,
         U.User_Name AS userName,
@@ -326,7 +369,7 @@ export class StaffRepository {
         U.History,
         STR_TO_DATE(
           SUBSTRING(U.History, 
-            LOCATE(' on ', U.History) + 4, 
+            LOCATE('vào ngày ', U.History) + 9, 
             10
           ), '%Y-%m-%d'
         ) AS donationDate
@@ -336,28 +379,36 @@ export class StaffRepository {
       JOIN BloodCompatibility BC ON BC.Donor_Blood_ID = U.BloodType_ID
         AND BC.Receiver_Blood_ID = ?
         AND BC.Is_Compatible = 1
+        AND BC.Component_ID = 'CP004'
       WHERE PD.Status = 'Approved' 
         AND U.Status = 'Active'
         AND U.History IS NOT NULL
-        AND LOCATE(' on ', U.History) > 0
+        AND LOCATE('vào ngày ', U.History) > 0
+        AND U.User_ID != ?
       HAVING donationDate IS NOT NULL 
         AND TIMESTAMPDIFF(MONTH, donationDate, NOW()) >= 3
       ORDER BY userName
       `,
-      [requestedBTID]
+      [requestedBTID, requesterId]
     )) as any[]
 
-    return rows.map((r) => ({
-      potentialId: r.potentialId,
-      userId: r.userId,
-      userName: r.userName,
-      bloodType: r.bloodType,
-      lastDonation: r.donationDate ? new Date(r.donationDate).toISOString().slice(0, 10) : '',
-      address: r.Address,
-      proximity: 1,
-      monthsSince: r.monthsSince || 3,
-      email: r.Email
-    }))
+    return rows.map((r) => {
+      const donorCity = this.getAddressAfterThirdComma(r.Address)
+      // proximity = 1 nếu cùng thành phố, 0 nếu khác
+      const isSameCity = requesterCity && donorCity && requesterCity === donorCity
+
+      return {
+        potentialId: r.potentialId,
+        userId: r.userId,
+        userName: r.userName,
+        bloodType: r.bloodType,
+        lastDonation: r.donationDate ? new Date(r.donationDate).toISOString().slice(0, 10) : '',
+        address: r.Address,
+        proximity: isSameCity ? 1 : 0,
+        monthsSince: r.monthsSince || 3,
+        email: r.Email
+      }
+    })
   }
 
   public async sendEmergencyEmailFixed(donorEmail: string, donorName: string): Promise<any> {
@@ -787,7 +838,7 @@ export class StaffRepository {
       const query = `SELECT BU.BloodUnit_ID,
         BU.BloodType_ID,
         CONCAT(BT.Blood_group, BT.RHFactor) as BloodGroup,
-        BU.Volumn as Volume,
+        BU.Volume,
         BU.Collected_Date,
         BU.Expiration_Date,
         BU.Status
@@ -815,7 +866,7 @@ export class StaffRepository {
       const query = `SELECT BU.BloodUnit_ID,
         BU.BloodType_ID,
         CONCAT(BT.Blood_group, BT.RHFactor) as BloodGroup,
-        BU.Volumn as Volume,
+        BU.Volume,
         BU.Collected_Date,
         BU.Expiration_Date,
         BU.Status
@@ -868,7 +919,7 @@ export class StaffRepository {
 
       const insertQuery = `
         INSERT INTO BloodUnit (
-          BloodUnit_ID, BloodType_ID, Volumn, Collected_Date, Expiration_Date, Status
+          BloodUnit_ID, BloodType_ID, Volume, Collected_Date, Expiration_Date, Status
         )
         VALUES (?, ?, ?, NOW(), ?, 'Available')
       `
