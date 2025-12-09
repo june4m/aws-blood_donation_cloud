@@ -11,6 +11,7 @@ const app = express()
 // CORS configuration for credentials (cookies)
 const allowedOrigins = [
   'https://main.d1fnooytkqycdg.amplifyapp.com',
+  'https://main.d1ag7fwsuhqivq.amplifyapp.com',
   'http://localhost:5173',
   'http://localhost:3000'
 ]
