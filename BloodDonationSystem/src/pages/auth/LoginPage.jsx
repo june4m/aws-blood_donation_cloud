@@ -30,8 +30,10 @@ export const LoginPage = () => {
 
       console.log("Login response data:", data);
 
-      // Lưu thông tin người dùng
+      // Lưu thông tin người dùng và token
       localStorage.setItem("isLoggedIn", "true");
+      localStorage.setItem("accessToken", data.data.accessToken);
+      localStorage.setItem("user", JSON.stringify(data.data));
 
 
       toast.success("Đăng nhập thành công!", {
