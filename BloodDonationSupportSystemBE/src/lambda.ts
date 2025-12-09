@@ -59,10 +59,11 @@ app.use(express.urlencoded({ extended: true }))
 app.use(cookieParser())
 
 // Routes - support both with and without /dev prefix (API Gateway stage)
+// Mount both API and Auth routes under /api for simplicity
 app.use('/api', router)
+app.use('/api', authRouter)
 app.use('/dev/api', router)
-app.use('/auth', authRouter)
-app.use('/dev/auth', authRouter)
+app.use('/dev/api', authRouter)
 app.use('/email', emailRouter)
 app.use('/dev/email', emailRouter)
 

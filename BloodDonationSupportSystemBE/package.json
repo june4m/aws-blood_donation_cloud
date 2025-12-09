@@ -4,7 +4,6 @@
   "description": "",
   "main": "index.js",
   "dependencies": {
-    "@aws-sdk/client-cognito-identity-provider": "^3.946.0",
     "@types/bcrypt": "^5.0.2",
     "@types/ms": "^0.7.31",
     "@types/nodemailer": "^6.4.17",

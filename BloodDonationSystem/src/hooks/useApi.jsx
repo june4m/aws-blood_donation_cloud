@@ -4,7 +4,9 @@ const useApi = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   // Use environment variable for API URL, fallback to /api for local development
-  const BASE_URL = import.meta.env.VITE_API_URL || "/api";
+  // Append /api if VITE_API_URL doesn't already end with /api
+  const apiUrl = import.meta.env.VITE_API_URL || "";
+  const BASE_URL = apiUrl.endsWith("/api") ? apiUrl : `${apiUrl}/api`;
 
   // Auth utilities
   const isLoggedIn = useCallback(() => {
