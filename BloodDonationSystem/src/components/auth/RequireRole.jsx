@@ -1,92 +1,126 @@
+import React, { useEffect, useState, useCallback } from "react";
 import { Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
-import { useEffect, useState } from "react";
-import useApi from "../../hooks/useApi";
 import Swal from "sweetalert2";
+import useApi from "../../hooks/useApi";
 
-const ProtectedRoute = ({ 
-  allowedRoles = null, 
-  requireAuth = false, 
-  restricted = false 
-}) => {
+/**
+ * Refactored ProtectedRoute
+ * - Avoids firing protected API calls when token is missing (prevents immediate 401 races)
+ * - Clears client-side auth first, then optionally notifies server (fire-and-forget)
+ * - Does NOT use window.location.href or timeouts for navigation
+ * - Throws and handles 401 at caller level (getCurrentUser should surface 401 via thrown error)
+ */
+
+const ProtectedRoute = ({ allowedRoles = null, requireAuth = false, restricted = false }) => {
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState(null);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+
   const location = useLocation();
   const navigate = useNavigate();
   const { getCurrentUser, logout } = useApi();
 
-  // Hàm đăng xuất và chuyển hướng
-  const handleLogoutAndRedirect = async (message) => {
+  // Clear client-side auth data and log stack for debugging
+  const clearClientAuth = useCallback(() => {
+    console.warn("clearClientAuth called. Clearing localStorage. Stack:\n", new Error().stack);
     try {
-      const isLoggedIn = localStorage.getItem("isLoggedIn") === "true";
-      if (isLoggedIn) {
-        await logout();
-      }
       localStorage.removeItem("isLoggedIn");
-      
-      // Hiển thị toast trước
-      toast.error(message, {
-        position: "top-center",
-        autoClose: 3000
-      });
-      
-      // Delay một chút để toast có thể hiển thị
-      setTimeout(() => {
-        navigate("/login", { replace: true });
-      }, 100);
-    } catch (error) {
-      localStorage.removeItem("isLoggedIn");
-      navigate("/login", { replace: true });
+      localStorage.removeItem("accessToken");
+      localStorage.removeItem("user");
+    } catch (err) {
+      console.error("Error clearing localStorage:", err);
     }
-  };
+  }, []);
 
-  // Hàm hiển thị popup đăng nhập
-  const showLoginPopup = async () => {
+  // Centralized logout + redirect handler
+  const handleLogoutAndRedirect = useCallback(async (message) => {
+    // Clear client immediately
+    clearClientAuth();
+
+    // Show user-friendly message
+    if (message) {
+      toast.error(message, { position: "top-center", autoClose: 3000 });
+    }
+
+    // Try to notify server but don't block UX (fire-and-forget)
+    try {
+      // Don't await to avoid race or further 401 triggering
+      logout?.().catch((err) => console.debug("Server logout failed (ignored):", err));
+    } catch (err) {
+      // ignore
+      console.debug("logout invocation failed:", err);
+    }
+
+    // Use react-router navigation (no reload)
+    navigate("/login", { replace: true });
+  }, [clearClientAuth, logout, navigate]);
+
+  // Small reusable popup for routes that require login
+  const showLoginPopup = useCallback(async () => {
     const result = await Swal.fire({
-      title: 'Lưu ý',
-      text: 'Vui lòng đăng nhập để sử dụng chức năng này.',
-      icon: 'warning',
+      title: "Lưu ý",
+      text: "Vui lòng đăng nhập để sử dụng chức năng này.",
+      icon: "warning",
       showCancelButton: true,
-      confirmButtonColor: '#3085d6',
-      cancelButtonColor: '#d33',
-      confirmButtonText: 'Xác nhận',
-      cancelButtonText: 'Hủy'
+      confirmButtonColor: "#3085d6",
+      cancelButtonColor: "#d33",
+      confirmButtonText: "Xác nhận",
+      cancelButtonText: "Hủy",
     });
-    
+
     if (result.isConfirmed) {
       navigate("/login", { state: { from: location }, replace: true });
-    }else if (!result.isConfirmed){
-      navigate("/")
+    } else {
+      navigate("/", { replace: true });
     }
-  };
+  }, [location, navigate]);
 
   useEffect(() => {
+    let cancelled = false;
+
     const checkAuth = async () => {
+      setIsLoading(true);
+
       try {
         const isLoggedIn = localStorage.getItem("isLoggedIn") === "true";
+        const token = localStorage.getItem("accessToken");
 
-        // Route công khai
+        // Public route (no auth required, not restricted)
         if (!requireAuth && !restricted) {
           setIsAuthorized(true);
           setIsLoading(false);
           return;
         }
 
-        // Route công khai có restricted (login/register)
+        // If route requires auth but user isn't flagged as logged in -> prompt login
+        if (requireAuth && !isLoggedIn) {
+          setIsAuthorized(true); // allow rendering so page can show prompt
+          setShowLoginPrompt(true);
+          setIsLoading(false);
+          return;
+        }
+
+        // Inconsistent state: marked logged in but token missing -> force logout
+        if (isLoggedIn && !token) {
+          await handleLogoutAndRedirect("Phiên đăng nhập không hợp lệ. Vui lòng đăng nhập lại.");
+          setIsAuthorized(false);
+          setIsLoading(false);
+          return;
+        }
+
+        // Restricted route (login/register) behavior: if logged in + token => fetch user to redirect
         if (!requireAuth && restricted) {
-          if (isLoggedIn) {
-            // Lấy user qua API để chuyển hướng đúng role
+          if (isLoggedIn && token) {
             try {
               const res = await getCurrentUser();
-              
-              if(!res.data){
-                alert("NO uỎe data")
-              }
-              setUser(res.data);
-              setIsAuthorized(false); // Sẽ chuyển hướng phía dưới
-            } catch {
+              if (!cancelled) setUser(res.data);
+              // We set isAuthorized to false so later code returns a <Navigate /> based on role
+              setIsAuthorized(false);
+            } catch (err) {
+              // If fetching user fails (401 etc.) we'll allow rendering (so user can still see login/register)
+              console.debug("getCurrentUser failed on restricted route:", err);
               setIsAuthorized(true);
             }
           } else {
@@ -96,43 +130,40 @@ const ProtectedRoute = ({
           return;
         }
 
-        // Route cần xác thực nhưng chưa đăng nhập
-        if (requireAuth && !isLoggedIn) {
-          // Cho phép render trang và hiển thị popup
-          setIsAuthorized(true);
-          setShowLoginPrompt(true);
-          setIsLoading(false);
-          return;
-        }
-
-        // Lấy user info từ API
+        // From here, we must have token (or we would have returned above)
         let userInfo = null;
         try {
           const res = await getCurrentUser();
           userInfo = res.data;
-          setUser(userInfo);
+          if (!cancelled) setUser(userInfo);
         } catch (error) {
+          // Treat 401 (or other auth errors) as expired session
+          console.debug("getCurrentUser error:", error);
           await handleLogoutAndRedirect("Phiên đăng nhập đã hết hạn");
           setIsAuthorized(false);
           setIsLoading(false);
           return;
         }
 
-        // Kiểm tra role nếu cần
-        if (allowedRoles) {
-          const userRole = (userInfo.user_role || "").trim().toLowerCase();
-          const normalizedAllowedRoles = allowedRoles.map(r => r.toLowerCase());
-          if (normalizedAllowedRoles.includes(userRole)) {
+        // If allowedRoles is provided, validate
+        if (allowedRoles && Array.isArray(allowedRoles)) {
+          const userRole = (userInfo?.user_role || "").toString().trim().toLowerCase();
+          const normalizedAllowed = allowedRoles.map((r) => r.toString().toLowerCase());
+          if (normalizedAllowed.includes(userRole)) {
             setIsAuthorized(true);
           } else {
-            await handleLogoutAndRedirect("Bạn không có quyền truy cập trang này.\nVui lòng đăng nhập bằng tài khoản có quyền phù hợp.");
+            await handleLogoutAndRedirect(
+              "Bạn không có quyền truy cập trang này. Vui lòng đăng nhập bằng tài khoản có quyền phù hợp."
+            );
             setIsAuthorized(false);
           }
         } else {
           setIsAuthorized(true);
         }
+
         setIsLoading(false);
-      } catch (error) {
+      } catch (err) {
+        console.error("Error in ProtectedRoute.checkAuth:", err);
         await handleLogoutAndRedirect("Đã xảy ra lỗi xác thực");
         setIsAuthorized(false);
         setIsLoading(false);
@@ -140,16 +171,19 @@ const ProtectedRoute = ({
     };
 
     checkAuth();
-    // eslint-disable-next-line
-  }, [allowedRoles, requireAuth, restricted, getCurrentUser]);
 
-  // Effect để hiển thị popup khi cần
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allowedRoles, requireAuth, restricted, getCurrentUser, handleLogoutAndRedirect]);
+
   useEffect(() => {
     if (showLoginPrompt) {
       showLoginPopup();
       setShowLoginPrompt(false);
     }
-  }, [showLoginPrompt]);
+  }, [showLoginPrompt, showLoginPopup]);
 
   if (isLoading) {
     return (
@@ -159,21 +193,16 @@ const ProtectedRoute = ({
     );
   }
 
-  // Điều hướng nếu không được phép
+  // If not authorized, handle restricted redirect based on fetched user
   if (!isAuthorized) {
-    // Trang login/register khi user đã đăng nhập
     if (restricted && user) {
-      const userRole = user.user_role;
-      switch (userRole) {
-        case "admin":
-          return <Navigate to="/admin" replace />;
-        case "staff":
-          return <Navigate to="/dashboard" replace />;
-        default:
-          return <Navigate to="/" replace />;
-      }
+      const role = (user.user_role || "").toString().toLowerCase();
+      if (role === "admin") return <Navigate to="/admin" replace />;
+      if (role === "staff") return <Navigate to="/dashboard" replace />;
+      return <Navigate to="/" replace />;
     }
-    // Các trường hợp khác đã được handleLogoutAndRedirect xử lý
+    // Other non-authorized cases are handled inside the hook (logout + navigate)
+    return null; // nothing to render because navigation/redirect handled
   }
 
   return <Outlet />;
