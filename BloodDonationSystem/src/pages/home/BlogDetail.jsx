@@ -10,7 +10,8 @@ const BlogDetail = () => {
   useEffect(() => {
     setLoading(true);
     setError(null);
-    fetch(`/api/blogs/${id}`)
+    const apiUrl = import.meta.env.VITE_API_URL || '';
+    fetch(`${apiUrl}/api/blogs/${id}`)
       .then((res) => res.json())
       .then((data) => {
         const blogData = data.data || data.blog || data;
