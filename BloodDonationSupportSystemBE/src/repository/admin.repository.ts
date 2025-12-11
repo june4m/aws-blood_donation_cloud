@@ -192,7 +192,7 @@ class AdminRepository {
         SELECT U.User_Name,
           SB.Title,
           SB.Description,
-          DATE_FORMAT(CONVERT_TZ(SB.Report_Date, '+00:00', '+07:00'), '%d/%m/%Y') AS Report_Date,
+          DATE_FORMAT(DATE_ADD(SB.Report_Date, INTERVAL 7 HOUR), '%d/%m/%Y') AS Report_Date,
           SD.VolumeIn,
           SD.VolumeOut, 
           SD.Note, 
