@@ -452,7 +452,8 @@ const useApi = () => {
   );
 
   const fetchEmailApi = useCallback(async (endpoint, options = {}) => {
-    const url = `${endpoint}`; // Không có BASE_URL
+    // Use apiUrl for email endpoints (same base as other APIs)
+    const url = `${apiUrl}${endpoint}`;
     setLoading(true);
     setError(null);
     try {
@@ -472,7 +473,7 @@ const useApi = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [apiUrl]);
 
   const sendRecoveryReminderEmail = useCallback(
     async (donorEmail, donorName) => {

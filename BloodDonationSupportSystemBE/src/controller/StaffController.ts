@@ -289,8 +289,14 @@ class StaffController {
   public async sendEmergencyEmailFixed(req: any, res: any): Promise<void> {
     try {
       const { donorEmail, donorName } = req.params
+      
+      // Decode URL encoded params
+      const decodedEmail = decodeURIComponent(donorEmail)
+      const decodedName = decodeURIComponent(donorName)
+      
+      console.log('Sending emergency email to:', decodedEmail, 'Name:', decodedName)
 
-      if (!donorEmail || !donorName) {
+      if (!decodedEmail || !decodedName) {
         res.status(HTTP_STATUS.BAD_REQUEST).json({
           success: false,
           message: 'Donor email and name are required in params'
@@ -298,7 +304,7 @@ class StaffController {
         return
       }
 
-      const result = await this.staffServices.sendEmergencyEmailFixed(donorEmail, donorName)
+      const result = await this.staffServices.sendEmergencyEmailFixed(decodedEmail, decodedName)
 
       res.status(HTTP_STATUS.OK).json({
         success: result.success,

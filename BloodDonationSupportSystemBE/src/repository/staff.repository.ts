@@ -413,28 +413,70 @@ export class StaffRepository {
 
   public async sendEmergencyEmailFixed(donorEmail: string, donorName: string): Promise<any> {
     try {
-      const subject = `🩸 Cần sự hỗ trợ khẩn cấp - Hiến máu cứu người`
+      const subject = `🩸 Cần sự hỗ trợ khẩn cấp - Hiến máu cứu người 🩸`
 
       const htmlContent = `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #ddd;">
-          <div style="background-color: #dc3545; color: white; padding: 20px; text-align: center;">
-            <h1>🩸 YÊU CẦU HIẾN MÁU KHẨN CẤP</h1>
-            <p>Trung tâm Hiến máu Đại Việt Blood</p>
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f5f5f5;">
+          <!-- Header -->
+          <div style="background-color: #dc3545; color: white; padding: 25px; text-align: center;">
+            <h1 style="margin: 0; font-size: 24px;">🩸 YÊU CẦU HIẾN MÁU KHẨN CẤP 🩸</h1>
+            <p style="margin: 10px 0 0 0; font-size: 14px;">Trung tâm Hiến máu Đại Việt Blood</p>
           </div>
-          <div style="padding: 30px;">
-            <h2 style="color: #dc3545;">Kính chào ${donorName},</h2>
+          
+          <!-- Main Content -->
+          <div style="background-color: white; padding: 30px;">
+            <h2 style="color: #dc3545; margin: 0 0 20px 0;">Kính chào ${donorName},</h2>
+            
+            <!-- Emergency Message -->
             <div style="background-color: #fff3cd; padding: 20px; border-left: 4px solid #ffc107; margin: 20px 0; border-radius: 5px;">
-              <p style="font-size: 18px; font-weight: bold; color: #856404; margin: 0; line-height: 1.6;">
+              <p style="font-size: 16px; font-weight: bold; color: #856404; margin: 0; line-height: 1.6;">
                 Hiện bên chúng tôi đang có 1 bệnh nhân cần máu khẩn cấp, bạn có thể hỗ trợ hiến máu để trao sự sống cho họ được không?
               </p>
             </div>
-            <div style="text-align: center; margin: 30px 0;">
-              <div style="background-color: #dc3545; color: white; padding: 25px; border-radius: 10px;">
-                <h3 style="margin: 0 0 15px 0;">🚨 LIÊN HỆ NGAY</h3>
-                <p style="margin: 0; font-size: 20px; font-weight: bold;">📞 Hotline: 1900-1234</p>
-                <p style="margin: 10px 0 0 0; font-size: 16px;">✉️ Email: support@bloodcenter.com</p>
-              </div>
+            
+            <!-- Why Donate Section -->
+            <div style="background-color: #d4edda; padding: 20px; border-radius: 5px; margin: 20px 0;">
+              <h3 style="color: #155724; margin: 0 0 15px 0;">❤️ Tại sao việc hiến máu quan trọng?</h3>
+              <ul style="margin: 0; padding-left: 20px; color: #155724; line-height: 1.8;">
+                <li>Máu không thể sản xuất nhân tạo</li>
+                <li>Mỗi lần hiến máu có thể cứu được tới 3 sinh mạng</li>
+                <li>Bạn là hy vọng cuối cùng của bệnh nhân</li>
+                <li>Hiến máu an toàn và không ảnh hưởng đến sức khỏe</li>
+              </ul>
             </div>
+            
+            <!-- Notes Section -->
+            <div style="background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin: 20px 0; border: 1px solid #dee2e6;">
+              <h3 style="color: #495057; margin: 0 0 15px 0;">📝 Lưu ý trước khi hiến máu:</h3>
+              <ul style="margin: 0; padding-left: 20px; color: #495057; line-height: 1.8;">
+                <li>Ăn uống đầy đủ trước khi hiến máu</li>
+                <li>Ngủ đủ giấc và có sức khỏe tốt</li>
+                <li>Không uống rượu bia 24h trước khi hiến</li>
+                <li>Mang theo CCCD/CMND khi đến hiến máu</li>
+              </ul>
+            </div>
+            
+            <!-- Contact Section -->
+            <div style="background-color: #fff3cd; padding: 25px; border-radius: 10px; text-align: center; margin: 20px 0;">
+              <h3 style="color: #856404; margin: 0 0 15px 0;">🚨 LIÊN HỆ NGAY</h3>
+              <p style="margin: 0 0 10px 0; color: #495057;">Vui lòng liên hệ với chúng tôi để được hỗ trợ:</p>
+              <p style="margin: 0; font-size: 20px; font-weight: bold; color: #dc3545;">📞 Hotline: 1900-1234</p>
+              <p style="margin: 10px 0 0 0; font-size: 16px; color: #495057;">✉️ Email: <a href="mailto:support@bloodcenter.com" style="color: #007bff;">support@bloodcenter.com</a></p>
+            </div>
+            
+            <!-- Thank You Message -->
+            <div style="text-align: center; margin: 30px 0;">
+              <h3 style="color: #dc3545; margin: 0;">Cảm ơn bạn đã sẵn sàng cứu người! 🙏</h3>
+              <p style="color: #6c757d; margin: 10px 0 0 0; font-style: italic;">Mỗi giọt máu của bạn là một sự sống được cứu!</p>
+            </div>
+          </div>
+          
+          <!-- Footer -->
+          <div style="background-color: #dc3545; color: white; padding: 20px; text-align: center;">
+            <p style="margin: 0; font-weight: bold;">Trung tâm Hiến máu Đại Việt Blood</p>
+            <p style="margin: 5px 0 0 0; font-size: 12px;">"Giọt máu nghĩa tình - Trao sự sống, nhận hạnh phúc"</p>
+            <p style="margin: 5px 0 0 0; font-size: 12px;">Địa chỉ: Lô E2a-8, Đường D1, Khu Công nghệ cao, Phường Tăng Nhơn Phú, TP. HCM</p>
+            <p style="margin: 5px 0 0 0; font-size: 12px;">Hotline: 0123 456 789 | Email: <a href="mailto:daivietblood@gmail.com" style="color: white;">support@bloodcenter.com</a></p>
           </div>
         </div>
       `

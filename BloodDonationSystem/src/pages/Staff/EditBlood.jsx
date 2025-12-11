@@ -249,10 +249,18 @@ const EditBloodPage = () => {
   // Helper format giờ dạng 7h00, trả về '-' nếu không hợp lệ
   const formatTimeVN = (timeString) => {
     if (!timeString) return "-";
-    // Lấy phần sau chữ T, ví dụ: "13:00:00.000Z"
+    
+    let timePart = "";
+    
+    // Nếu có chữ T (ISO format: "1970-01-01T07:30:00.000Z")
     const tIndex = timeString.indexOf("T");
-    if (tIndex === -1) return "-";
-    const timePart = timeString.slice(tIndex + 1, tIndex + 6); // "13:00"
+    if (tIndex !== -1) {
+      timePart = timeString.slice(tIndex + 1, tIndex + 6); // "07:30"
+    } else {
+      // MySQL TIME format: "07:30:00" hoặc "7:30:00"
+      timePart = timeString.slice(0, 5); // "07:30"
+    }
+    
     const [h, m] = timePart.split(":");
     if (!h || !m) return "-";
     return `${parseInt(h, 10)}h${m}`;
