@@ -56,8 +56,8 @@ app.use((req: Request, _res: Response, next: NextFunction) => {
   next()
 })
 
-app.use(express.json())
-app.use(express.urlencoded({ extended: true }))
+app.use(express.json({ limit: '10mb' }))
+app.use(express.urlencoded({ limit: '10mb', extended: true }))
 app.use(cookieParser())
 
 // Routes - support both with and without /dev prefix (API Gateway stage)

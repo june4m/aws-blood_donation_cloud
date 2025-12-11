@@ -84,6 +84,15 @@ Resources:
                   - cognito-idp:AdminUpdateUserAttributes
                   - cognito-idp:ListUsers
                 Resource: '*'
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:GetObject
+                  - s3:DeleteObject
+                  - s3:ListBucket
+                Resource:
+                  - !Sub 'arn:aws:s3:::${Environment}-${ProjectName}-assets-${AWS::AccountId}'
+                  - !Sub 'arn:aws:s3:::${Environment}-${ProjectName}-assets-${AWS::AccountId}/*'
       Tags:
         - Key: Name
           Value: !Sub '${Environment}-${ProjectName}-lambda-role'

@@ -51,7 +51,7 @@ export class BlogRepository {
     }
 
     const query = `
-      INSERT INTO Blog (Blog_ID, Title, Content, Pubished_At, Admin_ID, Image_url)
+      INSERT INTO Blog (Blog_ID, Title, Content, Published_At, Admin_ID, Image_url)
       VALUES (?, ?, ?, ?, ?, ?)
     `
     const params = [
