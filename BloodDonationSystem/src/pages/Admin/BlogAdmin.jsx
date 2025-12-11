@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import useApi from "../../hooks/useApi";
 import { toast } from "react-toastify";
 
@@ -16,11 +16,17 @@ const BlogAdmin = () => {
   const [blogs, setBlogs] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const cardsPerPage = 6;
-  const [form, setForm] = useState({ title: "", content: "", imageUrl: "" });
+  const [form, setForm] = useState({
+    title: "",
+    content: "",
+    imageUrl: "",
+    imageBase64: "",
+  });
   const [editingId, setEditingId] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [formError, setFormError] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState("");
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
 
@@ -68,49 +74,37 @@ const BlogAdmin = () => {
       setFormError("Nội dung quá ngắn, vui lòng nhập chi tiết hơn!");
       return;
     }
-    // Validate link ảnh
-    if (!form.imageUrl) {
-      setFormError("Vui lòng chọn ảnh hợp lệ!");
-      toast.error("Vui lòng chọn ảnh hợp lệ!");
-      return;
-    }
-    const url = form.imageUrl.trim();
-    const isValidImg = /^https?:\/\/.+\.(jpg|jpeg|png|gif|webp)$/i.test(url);
-    if (!isValidImg) {
-      setFormError(
-        "Ảnh không hợp lệ! (phải là link http(s), .jpg, .png, ... từ máy tính)"
-      );
-      toast.error(
-        "Ảnh không hợp lệ! (phải là link http(s), .jpg, .png, ... từ máy tính)"
-      );
+    // Validate ảnh - cần có ảnh mới (base64) hoặc ảnh cũ (imageUrl khi edit)
+    if (!form.imageBase64 && !form.imageUrl) {
+      setFormError("Vui lòng chọn ảnh!");
+      toast.error("Vui lòng chọn ảnh!");
       return;
     }
     try {
+      const payload = {
+        title: form.title,
+        content: form.content,
+        ...(form.imageBase64
+          ? { imageBase64: form.imageBase64 }
+          : { imageUrl: form.imageUrl }),
+      };
+
       if (editingId) {
-        await updateBlog(editingId, {
-          title: form.title,
-          content: form.content,
-          imageUrl: form.imageUrl,
-        });
+        await updateBlog(editingId, payload);
         toast.success("Cập nhật tin tức thành công!");
       } else {
-        await createBlog({
-          title: form.title,
-          content: form.content,
-          imageUrl: form.imageUrl,
-        });
+        await createBlog(payload);
         toast.success("Tạo tin tức mới thành công!");
       }
       fetchBlogs().then(setBlogs);
-      setShowForm(false); // Đóng popup NGAY khi thành công
+      setShowForm(false);
       setEditingId(null);
-      setForm({ title: "", content: "", imageUrl: "" });
+      setForm({ title: "", content: "", imageUrl: "", imageBase64: "" });
+      setPreviewUrl("");
       setFormError("");
     } catch (err) {
       setFormError(err.message || "Có lỗi xảy ra, vui lòng thử lại!");
-      toast.error(
-        "Không thể lưu ảnh này! Vui lòng chọn ảnh khác hoặc thử lại."
-      );
+      toast.error("Không thể lưu! Vui lòng thử lại.");
     }
   };
 
@@ -137,23 +131,32 @@ const BlogAdmin = () => {
       title: blog.Title || blog.title || blog.blog_title || "",
       content: blog.Content || blog.content || blog.blog_content || "",
       imageUrl: imgSrc || "",
+      imageBase64: "",
     });
+    setPreviewUrl(imgSrc || "");
     setEditingId(blog.Blog_ID || blog.blogId || blog.id);
     setShowForm(true);
   };
 
   const handleAdd = () => {
-    setForm({ title: "", content: "", imageUrl: "" });
+    setForm({ title: "", content: "", imageUrl: "", imageBase64: "" });
+    setPreviewUrl("");
     setEditingId(null);
     setShowForm(true);
   };
 
+  // Convert file to base64
+  const fileToBase64 = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = (error) => reject(error);
+    });
+  };
+
   // Pagination
   const { paged, totalPages } = paginate(blogs, currentPage, cardsPerPage);
-
-  // Cloudinary config demo, thay bằng của bạn nếu cần
-  const CLOUDINARY_CLOUD_NAME = "dehtgp5iq";
-  const CLOUDINARY_UPLOAD_PRESET = "demo_preset"; // Đảm bảo đúng tuyệt đối, không dấu cách, không ký tự lạ
 
   return (
     <div className="p-4 sm:p-6 max-w-screen-xl mx-auto w-full">
@@ -216,33 +219,23 @@ const BlogAdmin = () => {
                         onChange={async (e) => {
                           const file = e.target.files[0];
                           if (!file) return;
+                          // Validate file size (max 5MB)
+                          if (file.size > 5 * 1024 * 1024) {
+                            toast.error("Ảnh quá lớn! Tối đa 5MB.");
+                            return;
+                          }
                           setUploading(true);
-                          const formData = new FormData();
-                          formData.append("file", file);
-                          formData.append(
-                            "upload_preset",
-                            CLOUDINARY_UPLOAD_PRESET
-                          );
                           try {
-                            const res = await fetch(
-                              `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
-                              {
-                                method: "POST",
-                                body: formData,
-                              }
-                            );
-                            const data = await res.json();
-                            if (data.secure_url) {
-                              setForm((f) => ({
-                                ...f,
-                                imageUrl: data.secure_url,
-                              }));
-                              toast.success("Tải ảnh lên thành công!");
-                            } else {
-                              toast.error("Tải ảnh lên thất bại!");
-                            }
+                            const base64 = await fileToBase64(file);
+                            setForm((f) => ({
+                              ...f,
+                              imageBase64: base64,
+                              imageUrl: "", // Clear old URL when selecting new file
+                            }));
+                            setPreviewUrl(base64);
+                            toast.success("Đã chọn ảnh!");
                           } catch {
-                            toast.error("Lỗi upload ảnh!");
+                            toast.error("Lỗi đọc file ảnh!");
                           }
                           setUploading(false);
                         }}
@@ -257,12 +250,12 @@ const BlogAdmin = () => {
                         )}
                       </label>
                       <span className="text-gray-500 text-base">
-                        {form.imageUrl ? "Đã chọn ảnh" : "Chưa chọn tệp"}
+                        {previewUrl ? "Đã chọn ảnh" : "Chưa chọn tệp"}
                       </span>
                     </div>
-                    {form.imageUrl && (
+                    {previewUrl && (
                       <img
-                        src={form.imageUrl}
+                        src={previewUrl}
                         alt="preview"
                         className="mt-3 rounded-xl w-56 h-40 object-cover border shadow"
                       />
