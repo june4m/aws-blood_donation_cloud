@@ -4,7 +4,7 @@
 
 DaiVietBlood là hệ thống quản lý hiến máu toàn diện, hỗ trợ kết nối người hiến máu với các cơ sở y tế, quản lý kho máu và xử lý các yêu cầu máu khẩn cấp.
 
-## 🏗️ Kiến trúc hệ thống
+## 🏗️Architecture
 
 
 <img width="1121" height="581" alt="_support blood donation drawio" src="https://github.com/user-attachments/assets/062a99d5-d1de-4805-8e9d-9cfbf65d79c6" />
