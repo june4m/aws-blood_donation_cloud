@@ -6,35 +6,8 @@ DaiVietBlood là hệ thống quản lý hiến máu toàn diện, hỗ trợ k�
 
 ## 🏗️ Kiến trúc hệ thống
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                              FRONTEND                                        │
-│                    AWS Amplify (React + Vite)                               │
-│                 https://main.d1ag7fwsuhqivq.amplifyapp.com                  │
-└─────────────────────────────────┬───────────────────────────────────────────┘
-                                  │ HTTPS
-                                  ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                           API GATEWAY                                        │
-│              Amazon API Gateway (HTTP API)                                   │
-│         https://5mk065xtij.execute-api.ap-southeast-1.amazonaws.com         │
-└─────────────────────────────────┬───────────────────────────────────────────┘
-                                  │
-                                  ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                             COMPUTE                                          │
-│                    AWS Lambda (Node.js 18.x)                                │
-│                    - Express.js + serverless-http                           │
-│                    - JWT Authentication                                      │
-└───────────┬─────────────────────┼─────────────────────┬─────────────────────┘
-            │                     │                     │
-            ▼                     ▼                     ▼
-┌───────────────────┐  ┌───────────────────┐  ┌───────────────────┐
-│     DATABASE      │  │      STORAGE      │  │      EMAIL        │
-│   Amazon RDS      │  │    Amazon S3      │  │    Nodemailer     │
-│   (MySQL 8.0)     │  │  (Blog Images)    │  │   (Gmail SMTP)    │
-└───────────────────┘  └───────────────────┘  └───────────────────┘
-```
+
+<img width="1121" height="581" alt="_support blood donation drawio" src="https://github.com/user-attachments/assets/062a99d5-d1de-4805-8e9d-9cfbf65d79c6" />
 
 ## 🛠️ Tech Stack
 
